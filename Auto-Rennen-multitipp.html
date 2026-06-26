@@ -141,20 +141,44 @@ const selectedCars = new Set();
 
 const gameTypes = {
     F1: {
-        racers: ["🏎️", "🚗", "🚘", "🚙", "🚕", "🚓"],
-        names: ["Red Bull", "Mercedes", "Ferrari", "McLaren", "Alpine", "Aston Martin"]
+        items: [
+            { name: 'Red Bull', icon: '🏎️', color: '#1A73E8' },
+            { name: 'Mercedes', icon: '🏎️', color: '#00D2BE' },
+            { name: 'Ferrari', icon: '🏎️', color: '#DC0000' },
+            { name: 'McLaren', icon: '🏎️', color: '#FF8700' },
+            { name: 'Alpine', icon: '🏎️', color: '#1E41FF' },
+            { name: 'Aston Martin', icon: '🏎️', color: '#134A29' }
+        ]
     },
     Menschen: {
-        racers: ["🧍", "🧍‍♀️", "🧍‍♂️", "🏃", "🚶", "🧑‍🦽"],
-        names: ["Läufer 1", "Läufer 2", "Sprinter 1", "Sprinter 2", "Jogger 1", "Walker 1"]
+        items: [
+            { name: 'Läufer 1', icon: '🧍', color: '#ffb300' },
+            { name: 'Läufer 2', icon: '🧍‍♀️', color: '#e91e63' },
+            { name: 'Sprinter 1', icon: '🧍‍♂️', color: '#00bcd4' },
+            { name: 'Sprinter 2', icon: '🏃', color: '#4caf50' },
+            { name: 'Jogger 1', icon: '🚶', color: '#9c27b0' },
+            { name: 'Walker 1', icon: '🧑‍🦽', color: '#ff5722' }
+        ]
     },
     Autos: {
-        racers: ["🚗", "🚘", "🚙", "🛻", "🚓", "🚕"],
-        names: ["Rennauto", "Limousine", "SUV", "Pick-up", "Polizei", "Taxi"]
+        items: [
+            { name: 'Rennauto', icon: '🚗', color: '#2196f3' },
+            { name: 'Limousine', icon: '🚘', color: '#9e9e9e' },
+            { name: 'SUV', icon: '🚙', color: '#3f51b5' },
+            { name: 'Pick-up', icon: '🛻', color: '#795548' },
+            { name: 'Polizei', icon: '🚓', color: '#0d47a1' },
+            { name: 'Taxi', icon: '🚕', color: '#fdd835' }
+        ]
     },
     Pferde: {
-        racers: ["🐎", "🐴", "🦄", "🐂", "🦌", "🐪"],
-        names: ["Rennpferd 1", "Rennpferd 2", "Jockeypferd", "Stute 1", "Hengst 1", "Kamele 1"]
+        items: [
+            { name: 'Rennpferd 1', icon: '🐎', color: '#795548' },
+            { name: 'Rennpferd 2', icon: '🐴', color: '#8d6e63' },
+            { name: 'Jockeypferd', icon: '🦄', color: '#9c27b0' },
+            { name: 'Stute 1', icon: '🐂', color: '#4caf50' },
+            { name: 'Hengst 1', icon: '🦌', color: '#ff9800' },
+            { name: 'Kamel 1', icon: '🐪', color: '#ff5722' }
+        ]
     }
 };
 
@@ -170,21 +194,23 @@ function renderGame() {
     result.textContent = '';
     updatePayoutInfo();
 
-    for (let i = 0; i < current.racers.length; i++) {
+    for (let i = 0; i < current.items.length; i++) {
+        const item = current.items[i];
         tracks.innerHTML += `
         <div class="track">
-            <div class="car" id="car${i}">${current.racers[i]}</div>
+            <div class="car" id="car${i}" style="background:${item.color};">${item.icon}</div>
             <div class="car-number">${i + 1}</div>
             <div class="finish"></div>
         </div>
         `;
     }
 
-    for (let i = 0; i < current.racers.length; i++) {
+    for (let i = 0; i < current.items.length; i++) {
+        const item = current.items[i];
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'car-choice';
-        button.textContent = `${current.names[i]} ${current.racers[i]}`;
+        button.textContent = `${item.name} ${item.icon}`;
         button.dataset.index = i;
         button.addEventListener('click', () => toggleCarSelection(i, button));
         carChooser.appendChild(button);
@@ -234,14 +260,14 @@ function startRace() {
     result.textContent = '';
     startButton.disabled = true;
 
-    const carElements = current.racers.map((_, i) => document.getElementById('car' + i));
+    const carElements = current.items.map((_, i) => document.getElementById('car' + i));
     const trackElements = Array.from(document.querySelectorAll('.track'));
     const trackWidth = trackElements[0].clientWidth;
     const carWidth = carElements[0].clientWidth;
     const finishX = trackWidth - carWidth - 10;
 
     let finished = false;
-    const positions = current.racers.map(() => 0);
+    const positions = current.items.map(() => 0);
 
     carElements.forEach(car => car.style.left = '0px');
 
