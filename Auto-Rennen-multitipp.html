@@ -67,6 +67,31 @@ select {
     width: 280px;
 }
 
+#carChooser {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin: 10px auto;
+    max-width: 520px;
+}
+
+.car-choice {
+    border: 1px solid #ccc;
+    background: #333;
+    color: white;
+    padding: 10px 14px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    min-width: 120px;
+}
+
+.car-choice.selected {
+    background: #0a7;
+    border-color: #0f9;
+}
+
 #result {
     font-size: 24px;
     margin-top: 20px;
@@ -79,24 +104,15 @@ select {
 <h1>🏁 Auto-Rennen Multi-Tipp</h1>
 <p>Wähle ein oder mehrere Autos aus und setze auf das Rennen.</p>
 
-<p>
-Auto:
-<select id="betCars" multiple size="4">
-    <option value="0">Auto 1</option>
-    <option value="1">Auto 2</option>
-    <option value="2">Auto 3</option>
-    <option value="3">Auto 4</option>
-    <option value="4">Auto 5</option>
-    <option value="5">Auto 6</option>
-</select>
-</p>
+<p>Auto:</p>
+<div id="carChooser"></div>
 
 <p>
-Einsatz:
+Einsatz (Schalbtahler):
 <input id="betAmount" type="number" value="100" min="1">
 </p>
 
-<p id="payoutInfo">Wähle Einsatz und Autos, um den möglichen Gewinn zu sehen.</p>
+<p id="payoutInfo">Wähle Einsatz und Autos, um den möglichen Gewinn in Schalbtahlern zu sehen.</p>
 
 <button id="startButton">Rennen starten</button>
 
@@ -108,9 +124,10 @@ const cars = ["🚗", "🚙", "🏎️", "🚕", "🚓", "🚘"];
 const tracks = document.getElementById('tracks');
 const result = document.getElementById('result');
 const payoutInfo = document.getElementById('payoutInfo');
-const betCars = document.getElementById('betCars');
+const carChooser = document.getElementById('carChooser');
 const betAmount = document.getElementById('betAmount');
 const startButton = document.getElementById('startButton');
+const selectedCars = new Set();
 
 for (let i = 0; i < cars.length; i++) {
     tracks.innerHTML += `
@@ -122,9 +139,40 @@ for (let i = 0; i < cars.length; i++) {
     `;
 }
 
+for (let i = 0; i < cars.length; i++) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'car-choice';
+    button.textContent = `Auto ${i + 1} ${cars[i]}`;
+    button.dataset.index = i;
+    button.addEventListener('click', () => toggleCarSelection(i, button));
+    carChooser.appendChild(button);
+}
+
+function toggleCarSelection(index, button) {
+    if (selectedCars.has(index)) {
+        selectedCars.delete(index);
+        button.classList.remove('selected');
+    } else {
+        selectedCars.add(index);
+        button.classList.add('selected');
+    }
+    updatePayoutInfo();
+}
+
+function updatePayoutInfo() {
+    const count = selectedCars.size;
+    const bet = parseInt(betAmount.value, 10);
+    if (count === 0 || !bet || bet <= 0) {
+        payoutInfo.textContent = 'Wähle Einsatz und Autos, um den möglichen Gewinn in Schalbtahlern zu sehen.';
+        return;
+    }
+    const payout = Math.round(bet * 6 / count);
+    payoutInfo.textContent = `Bei ${count} Tipp(s) und ${bet} Schalbtahler Einsatz beträgt der mögliche Gewinn ${payout} Schalbtahler.`;
+}
+
 function startRace() {
-    const chosenOptions = Array.from(betCars.selectedOptions);
-    const chosenIndices = chosenOptions.map(option => parseInt(option.value, 10));
+    const chosenIndices = Array.from(selectedCars);
     const bet = parseInt(betAmount.value, 10);
 
     if (chosenIndices.length === 0) {
@@ -138,7 +186,6 @@ function startRace() {
     }
 
     const payout = Math.round(bet * 6 / chosenIndices.length);
-    const profit = payout - bet;
     payoutInfo.textContent = `Bei ${chosenIndices.length} Tipp(s) und ${bet} Schalbtahler Einsatz beträgt der mögliche Gewinn ${payout} Schalbtahler.`;
 
     result.textContent = '';
