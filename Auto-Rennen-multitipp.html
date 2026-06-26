@@ -101,10 +101,10 @@ select {
 </head>
 <body>
 
-<h1>🏁 Schwalbtahler</h1>
-<p>Wähle ein oder mehrere Autos aus und setze auf das Rennen.</p>
+<h1>🏁 Schalbtahler</h1>
+<p>Wähle ein oder mehrere Teilnehmer aus und setze auf das Rennen.</p>
 
-<p>Auto:</p>
+<p>Teilnehmer:</p>
 <div id="carChooser"></div>
 
 <p>
@@ -112,7 +112,7 @@ Einsatz (Schwalbtahler):
 <input id="betAmount" type="number" value="1" min="1">
 </p>
 
-<p id="payoutInfo">Wähle Einsatz und Autos, um den möglichen Gewinn in Schwalbtahlern zu sehen.</p>
+<p id="payoutInfo">Wähle Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.</p>
 
 <button id="startButton">Rennen starten</button>
 
@@ -120,7 +120,8 @@ Einsatz (Schwalbtahler):
 <h2 id="result"></h2>
 
 <script>
-const cars = ["🚗", "🚙", "🏎️", "🚕", "🚓", "🚘"];
+const racers = ["🚗", "✈️", "🏍️", "🧍", "🐎", "🚘"];
+const racerNames = ["Auto", "Flugzeug", "Motorrad", "Mensch", "Pferd", "Taxi"];
 const tracks = document.getElementById('tracks');
 const result = document.getElementById('result');
 const payoutInfo = document.getElementById('payoutInfo');
@@ -129,21 +130,21 @@ const betAmount = document.getElementById('betAmount');
 const startButton = document.getElementById('startButton');
 const selectedCars = new Set();
 
-for (let i = 0; i < cars.length; i++) {
+for (let i = 0; i < racers.length; i++) {
     tracks.innerHTML += `
     <div class="track">
-        <div class="car" id="car${i}">${cars[i]}</div>
+        <div class="car" id="car${i}">${racers[i]}</div>
         <div class="car-number">${i + 1}</div>
         <div class="finish"></div>
     </div>
     `;
 }
 
-for (let i = 0; i < cars.length; i++) {
+for (let i = 0; i < racers.length; i++) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'car-choice';
-    button.textContent = `Auto ${i + 1} ${cars[i]}`;
+    button.textContent = `${racerNames[i]} ${racers[i]}`;
     button.dataset.index = i;
     button.addEventListener('click', () => toggleCarSelection(i, button));
     carChooser.appendChild(button);
@@ -164,7 +165,7 @@ function updatePayoutInfo() {
     const count = selectedCars.size;
     const bet = parseInt(betAmount.value, 10);
     if (count === 0 || !bet || bet <= 0) {
-        payoutInfo.textContent = 'Wähle Einsatz und Autos, um den möglichen Gewinn in Schwalbtahlern zu sehen.';
+        payoutInfo.textContent = 'Wähle Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.';
         return;
     }
     const payout = Math.round(bet * 6 / count);
@@ -176,7 +177,7 @@ function startRace() {
     const bet = parseInt(betAmount.value, 10);
 
     if (chosenIndices.length === 0) {
-        alert('Bitte wähle mindestens ein Auto aus.');
+        alert('Bitte wähle mindestens einen Teilnehmer aus.');
         return;
     }
 
@@ -191,14 +192,14 @@ function startRace() {
     result.textContent = '';
     startButton.disabled = true;
 
-    const carElements = cars.map((_, i) => document.getElementById('car' + i));
+    const carElements = racers.map((_, i) => document.getElementById('car' + i));
     const trackElements = Array.from(document.querySelectorAll('.track'));
     const trackWidth = trackElements[0].clientWidth;
     const carWidth = carElements[0].clientWidth;
     const finishX = trackWidth - carWidth - 10;
 
     let finished = false;
-    const positions = cars.map(() => 0);
+    const positions = racers.map(() => 0);
 
     carElements.forEach(car => car.style.left = '0px');
 
@@ -213,9 +214,9 @@ function startRace() {
                 startButton.disabled = false;
 
                 if (chosenIndices.includes(i)) {
-                    result.textContent = `🎉 Auto ${i + 1} gewinnt! Einer deiner Tipps war richtig.`;
+                    result.textContent = `🎉 Teilnehmer ${i + 1} gewinnt! Einer deiner Tipps war richtig.`;
                 } else {
-                    result.textContent = `❌ Auto ${i + 1} gewinnt. Deine Tipps lagen daneben.`;
+                    result.textContent = `❌ Teilnehmer ${i + 1} gewinnt. Deine Tipps lagen daneben.`;
                 }
                 break;
             }
