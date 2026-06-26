@@ -164,11 +164,11 @@ function updatePayoutInfo() {
     const count = selectedCars.size;
     const bet = parseInt(betAmount.value, 10);
     if (count === 0 || !bet || bet <= 0) {
-        payoutInfo.textContent = 'Wähle Einsatz und Autos, um den möglichen Gewinn in Schalbtahlern zu sehen.';
+        payoutInfo.textContent = 'Wähle Einsatz und Autos, um den möglichen Gewinn in Schwalbtahlern zu sehen.';
         return;
     }
     const payout = Math.round(bet * 6 / count);
-    payoutInfo.textContent = `Bei ${count} Tipp(s) und ${bet} Schalbtahler Einsatz beträgt der mögliche Gewinn ${payout} Schalbtahler.`;
+    payoutInfo.textContent = `Bei ${count} Tipp(s) und ${bet} Schwalbtahler Einsatz beträgt der mögliche Gewinn ${payout} Schwalbtahler.`;
 }
 
 function startRace() {
@@ -186,7 +186,7 @@ function startRace() {
     }
 
     const payout = Math.round(bet * 6 / chosenIndices.length);
-    payoutInfo.textContent = `Bei ${chosenIndices.length} Tipp(s) und ${bet} Schalbtahler Einsatz beträgt der mögliche Gewinn ${payout} Schalbtahler.`;
+    payoutInfo.textContent = `Bei ${chosenIndices.length} Tipp(s) und ${bet} Schwalbtahler Einsatz beträgt der mögliche Gewinn ${payout} Schwalbtahler.`;
 
     result.textContent = '';
     startButton.disabled = true;
