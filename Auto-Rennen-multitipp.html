@@ -67,28 +67,13 @@ select {
     width: 280px;
 }
 
-#chooserGroups {
+#carChooser {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 18px;
+    gap: 8px;
     margin: 10px auto;
-    max-width: 760px;
-}
-
-.group {
-    background: #2a2a2a;
-    border: 1px solid #444;
-    border-radius: 12px;
-    padding: 10px;
-    min-width: 180px;
-    flex: 1 1 180px;
-}
-
-.group-title {
-    margin: 0 0 10px;
-    font-size: 16px;
-    color: #9fdf9f;
+    max-width: 520px;
 }
 
 .car-choice {
@@ -100,9 +85,6 @@ select {
     border-radius: 8px;
     cursor: pointer;
     min-width: 120px;
-    margin: 4px 0;
-    width: 100%;
-    text-align: left;
 }
 
 .car-choice.selected {
@@ -123,7 +105,7 @@ select {
 <p>Wähle ein oder mehrere Teilnehmer aus und setze auf das Rennen.</p>
 
 <p>Teilnehmer:</p>
-<div id="chooserGroups"></div>
+<div id="carChooser"></div>
 
 <p>
 Einsatz (Schwalbtahler):
@@ -138,78 +120,49 @@ Einsatz (Schwalbtahler):
 <h2 id="result"></h2>
 
 <script>
-const participantGroups = [
-    { title: 'Fahrzeuge', items: [
-        { name: 'Auto', icon: '🚗' },
-        { name: 'Taxi', icon: '🚘' },
-        { name: 'Motorrad', icon: '🏍️' },
-        { name: 'Flugzeug', icon: '✈️' }
-    ] },
-    { title: 'Menschen', items: [
-        { name: 'Mensch', icon: '🧍' }
-    ] },
-    { title: 'Tiere', items: [
-        { name: 'Pferd', icon: '🐎' }
-    ] }
-];
+const racers = ["🚗", "✈️", "🏍️", "🧍", "🐎", "🚘"];
+const racerNames = ["Auto", "Flugzeug", "Motorrad", "Mensch", "Pferd", "Taxi"];
 const tracks = document.getElementById('tracks');
 const result = document.getElementById('result');
 const payoutInfo = document.getElementById('payoutInfo');
-const chooserGroups = document.getElementById('chooserGroups');
+const carChooser = document.getElementById('carChooser');
 const betAmount = document.getElementById('betAmount');
 const startButton = document.getElementById('startButton');
-const selectedParticipants = new Set();
+const selectedCars = new Set();
 
-const participants = [];
-participantGroups.forEach(group => {
-    group.items.forEach(item => participants.push(item));
-});
-
-for (let i = 0; i < participants.length; i++) {
+for (let i = 0; i < racers.length; i++) {
     tracks.innerHTML += `
     <div class="track">
-        <div class="car" id="car${i}">${participants[i].icon}</div>
+        <div class="car" id="car${i}">${racers[i]}</div>
         <div class="car-number">${i + 1}</div>
         <div class="finish"></div>
     </div>
     `;
 }
 
-participantGroups.forEach(group => {
-    const groupDiv = document.createElement('div');
-    groupDiv.className = 'group';
-    const title = document.createElement('h2');
-    title.className = 'group-title';
-    title.textContent = group.title;
-    groupDiv.appendChild(title);
+for (let i = 0; i < racers.length; i++) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'car-choice';
+    button.textContent = `${racerNames[i]} ${racers[i]}`;
+    button.dataset.index = i;
+    button.addEventListener('click', () => toggleCarSelection(i, button));
+    carChooser.appendChild(button);
+}
 
-    group.items.forEach(item => {
-        const index = participants.findIndex(part => part === item);
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'car-choice';
-        button.textContent = `${item.name} ${item.icon}`;
-        button.dataset.index = index;
-        button.addEventListener('click', () => toggleParticipantSelection(index, button));
-        groupDiv.appendChild(button);
-    });
-
-    chooserGroups.appendChild(groupDiv);
-});
-
-function toggleParticipantSelection(index, button) {
-    if (selectedParticipants.has(index)) {
-        selectedParticipants.delete(index);
+function toggleCarSelection(index, button) {
+    if (selectedCars.has(index)) {
+        selectedCars.delete(index);
         button.classList.remove('selected');
     } else {
-        selectedParticipants.add(index);
+        selectedCars.add(index);
         button.classList.add('selected');
     }
     updatePayoutInfo();
 }
 
 function updatePayoutInfo() {
-    const count = selectedParticipants.size;
+    const count = selectedCars.size;
     const bet = parseInt(betAmount.value, 10);
     if (count === 0 || !bet || bet <= 0) {
         payoutInfo.textContent = 'Wähle Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.';
@@ -220,7 +173,7 @@ function updatePayoutInfo() {
 }
 
 function startRace() {
-    const chosenIndices = Array.from(selectedParticipants);
+    const chosenIndices = Array.from(selectedCars);
     const bet = parseInt(betAmount.value, 10);
 
     if (chosenIndices.length === 0) {
@@ -239,19 +192,19 @@ function startRace() {
     result.textContent = '';
     startButton.disabled = true;
 
-    const carElements = participants.map((_, i) => document.getElementById('car' + i));
+    const carElements = racers.map((_, i) => document.getElementById('car' + i));
     const trackElements = Array.from(document.querySelectorAll('.track'));
     const trackWidth = trackElements[0].clientWidth;
     const carWidth = carElements[0].clientWidth;
     const finishX = trackWidth - carWidth - 10;
 
     let finished = false;
-    const positions = participants.map(() => 0);
+    const positions = racers.map(() => 0);
 
     carElements.forEach(car => car.style.left = '0px');
 
     const interval = setInterval(() => {
-        for (let i = 0; i < participants.length; i++) {
+        for (let i = 0; i < cars.length; i++) {
             positions[i] += Math.random() * 8 + 1;
             carElements[i].style.left = positions[i] + 'px';
 
