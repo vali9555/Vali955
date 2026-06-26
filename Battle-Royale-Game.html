@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battle Royale 2D</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 1000px;
+      height: 700px;
+      border: 3px solid #fff;
+      background: linear-gradient(180deg, #87ceeb 0%, #e0f6ff 100%);
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+
+    #gameCanvas {
+      display: block;
+      background: linear-gradient(180deg, #87ceeb 0%, #e0f6ff 100%);
+    }
+
+    #ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .hud {
+      position: absolute;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+      font-weight: bold;
+    }
+
+    #playerStats {
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      min-width: 250px;
+    }
+
+    #ammo {
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 16px;
+      text-align: right;
+    }
+
+    #inventory {
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: flex;
+      gap: 20px;
+    }
+
+    #radar {
+      bottom: 10px;
+      right: 10px;
+      width: 120px;
+      height: 120px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 2px solid #00ff00;
+      border-radius: 50%;
+      position: relative;
+    }
+
+    #radarCanvas {
+      width: 100%;
+      height: 100%;
+    }
+
+
+
+    #controls {
+      position: absolute;
+      bottom: 150px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    .bar {
+      width: 200px;
+      height: 20px;
+      background: #333;
+      border: 2px solid #fff;
+      border-radius: 4px;
+      margin-top: 5px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00ff00, #ffff00);
+      transition: width 0.2s;
+    }
+
+    .bar-fill.shield {
+      background: linear-gradient(90deg, #00ccff, #0066ff);
+    }
+
+    .wave-info {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.8);
+      padding: 30px 50px;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+      z-index: 50;
+    }
+
+    .wave-info.show {
+      display: block;
+    }
+
+    .wave-info h2 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .wave-info p {
+      font-size: 18px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="1000" height="700"></canvas>
+    <div id="ui">
+      <div id="playerStats" class="hud">
+        <div>❤️ Health: <span id="healthVal">100</span>/100</div>
+        <div class="bar"><div class="bar-fill" id="healthBar"></div></div>
+        <div style="margin-top: 10px;">🛡️ Shield: <span id="shieldVal">0</span>/50</div>
+        <div class="bar"><div class="bar-fill shield" id="shieldBar"></div></div>
+        <div style="margin-top: 10px;">🧍 Kills: <span id="killsVal">0</span></div>
+        <div style="margin-top: 5px; font-size: 12px; color: #aaa;">Spieler übrig: <span id="playersLeft">1</span></div>
+      </div>
+
+      <div id="ammo" class="hud">
+        <div id="ammoText">Munition: 30/120</div>
+        <div id="weaponName">AR - Gewehr</div>
+      </div>
+
+      <div id="inventory" class="hud">
+        <div>🪵 Holz: <span id="woodVal">0</span></div>
+        <div>🪨 Stein: <span id="stoneVal">0</span></div>
+        <div>⚙️ Metall: <span id="metalVal">0</span></div>
+      </div>
+
+      <div id="controls" class="hud">
+        WASD: Bewegen<br>
+        Maus: Zielen<br>
+        Linksklick: Schießen<br>
+        E: Sammel Ressourcen<br>
+        Q,W,E,R: Waffe wählen
+      </div>
+
+      <canvas id="radarCanvas"></canvas>
+
+      <div class="wave-info" id="waveInfo">
+        <h2>⚠️ STORM Kommt!</h2>
+        <p id="waveTimer">Zone schrumpft in 5s</p>
+      </div>
+
+
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const radarCanvas = document.getElementById('radarCanvas');
+    const radarCtx = radarCanvas.getContext('2d');
+
+    // Game variables
+    const gameWidth = 1000;
+    const gameHeight = 700;
+    const mapSize = 2000;
+
+    let gameState = {
+      running: true,
+      kills: 0,
+      score: 0,
+      playersLeft: 50
+    };
+
+    // Player object
+    const player = {
+      x: mapSize / 2,
+      y: mapSize / 2,
+      width: 20,
+      height: 25,
+      vx: 0,
+      vy: 0,
+      speed: 4,
+      health: 100,
+      maxHealth: 100,
+      shield: 0,
+      maxShield: 50,
+      angle: 0,
+      weapon: 'ar',
+      ammo: { ar: 120, smg: 180, sniper: 30, shotgun: 24 },
+      resources: { wood: 0, stone: 0, metal: 0 },
+      maxResources: 500
+    };
+
+    // Weapons
+    const weapons = {
+      ar: { name: 'AR - Gewehr', damage: 15, firerate: 100, range: 400, ammo: 'ar' },
+      smg: { name: 'SMG - Maschinenpistole', damage: 8, firerate: 50, range: 250, ammo: 'smg' },
+      sniper: { name: 'Sniper - Scharfschütze', damage: 80, firerate: 800, range: 800, ammo: 'sniper' },
+      shotgun: { name: 'Shotgun - Flinte', damage: 70, firerate: 600, range: 150, ammo: 'shotgun' }
+    };
+
+    let lastShoot = 0;
+    const keys = {};
+    let mouseX = gameWidth / 2;
+    let mouseY = gameHeight / 2;
+
+    // Enemy array
+    let enemies = [];
+    let particles = [];
+    let lootItems = [];
+    let buildings = [];
+
+    // Game zone
+    let zone = {
+      x: mapSize / 2,
+      y: mapSize / 2,
+      radius: 400,
+      shrinkRate: 0.98,
+      phase: 0,
+      maxPhases: 5,
+      damagePerTick: 5
+    };
+
+    let waveTimer = 0;
+    let waveActive = false;
+
+    // Initialize enemies
+    function spawnEnemies() {
+      enemies = [];
+      for (let i = 0; i < gameState.playersLeft - 1; i++) {
+        enemies.push({
+          x: Math.random() * mapSize,
+          y: Math.random() * mapSize,
+          width: 20,
+          height: 25,
+          vx: 0,
+          vy: 0,
+          speed: 2,
+          health: 100,
+          shield: 0,
+          angle: Math.random() * Math.PI * 2,
+          weapon: ['ar', 'smg', 'shotgun'][Math.floor(Math.random() * 3)],
+          ammo: 150,
+          lastShoot: 0,
+          targetX: Math.random() * mapSize,
+          targetY: Math.random() * mapSize,
+          ai: true
+        });
+      }
+    }
+
+    // Spawn loot
+    function spawnLoot() {
+      lootItems = [];
+      for (let i = 0; i < 30; i++) {
+        lootItems.push({
+          x: Math.random() * mapSize,
+          y: Math.random() * mapSize,
+          type: ['ammo', 'health', 'shield'][Math.floor(Math.random() * 3)],
+          amount: Math.floor(Math.random() * 30) + 20
+        });
+      }
+
+      // Spawn resources
+      for (let i = 0; i < 50; i++) {
+        buildings.push({
+          x: Math.random() * mapSize,
+          y: Math.random() * mapSize,
+          width: 40,
+          height: 40,
+          health: 100,
+          material: ['wood', 'stone', 'metal'][Math.floor(Math.random() * 3)]
+        });
+      }
+    }
+
+    // Draw player
+    function drawPlayer(p, isPlayer = false) {
+      ctx.save();
+      ctx.translate(p.x - (player.x - gameWidth / 2), p.y - (player.y - gameHeight / 2));
+
+      // Body
+      ctx.fillStyle = isPlayer ? '#00ff00' : '#ff6b6b';
+      ctx.fillRect(-p.width / 2, -p.height / 2, p.width, p.height);
+
+      // Head
+      ctx.fillStyle = isPlayer ? '#00dd00' : '#dd0000';
+      ctx.fillRect(-p.width / 2 - 2, -p.height / 2 - 8, p.width + 4, 10);
+
+      // Weapon direction indicator
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(p.angle) * 15, Math.sin(p.angle) * 15);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Draw game zone
+    function drawZone() {
+      const screenX = zone.x - (player.x - gameWidth / 2);
+      const screenY = zone.y - (player.y - gameHeight / 2);
+
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, zone.radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, zone.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Draw buildings
+    function drawBuildings() {
+      buildings.forEach(b => {
+        const screenX = b.x - (player.x - gameWidth / 2);
+        const screenY = b.y - (player.y - gameHeight / 2);
+
+        if (screenX > -50 && screenX < gameWidth + 50 && screenY > -50 && screenY < gameHeight + 50) {
+          const colorMap = { wood: '#8B4513', stone: '#808080', metal: '#C0C0C0' };
+          ctx.fillStyle = colorMap[b.material];
+          ctx.fillRect(screenX - b.width / 2, screenY - b.height / 2, b.width, b.height);
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(screenX - b.width / 2, screenY - b.height / 2, b.width, b.height);
+        }
+      });
+    }
+
+    // Draw loot
+    function drawLoot() {
+      lootItems.forEach(item => {
+        const screenX = item.x - (player.x - gameWidth / 2);
+        const screenY = item.y - (player.y - gameHeight / 2);
+
+        if (screenX > -10 && screenX < gameWidth + 10 && screenY > -10 && screenY < gameHeight + 10) {
+          ctx.fillStyle = item.type === 'ammo' ? '#ffff00' : item.type === 'health' ? '#00ff00' : '#00ccff';
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+    }
+
+    // Draw particles
+    function drawParticles() {
+      particles.forEach((p, i) => {
+        const screenX = p.x - (player.x - gameWidth / 2);
+        const screenY = p.y - (player.y - gameHeight / 2);
+
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillRect(screenX, screenY, 3, 3);
+        ctx.globalAlpha = 1;
+
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+
+        if (p.life <= 0) particles.splice(i, 1);
+      });
+    }
+
+    // Update player
+    function updatePlayer() {
+      let moving = false;
+      player.vx = 0;
+      player.vy = 0;
+
+      if (keys['w'] || keys['W']) player.vy -= player.speed;
+      if (keys['s'] || keys['S']) player.vy += player.speed;
+      if (keys['a'] || keys['A']) player.vx -= player.speed;
+      if (keys['d'] || keys['D']) player.vx += player.speed;
+
+      if (player.vx !== 0 || player.vy !== 0) moving = true;
+
+      player.x += player.vx;
+      player.y += player.vy;
+
+      // Keep in map
+      player.x = Math.max(0, Math.min(mapSize, player.x));
+      player.y = Math.max(0, Math.min(mapSize, player.y));
+
+      // Collect loot
+      lootItems = lootItems.filter(item => {
+        const dist = Math.hypot(item.x - player.x, item.y - player.y);
+        if (dist < 30) {
+          if (item.type === 'ammo') {
+            player.ammo[player.weapon] = Math.min(player.ammo[player.weapon] + item.amount, 300);
+          } else if (item.type === 'health') {
+            player.health = Math.min(player.health + item.amount, player.maxHealth);
+          } else if (item.type === 'shield') {
+            player.shield = Math.min(player.shield + item.amount, player.maxShield);
+          }
+          gameState.score += 10;
+          return false;
+        }
+        return true;
+      });
+
+      // Mine resources
+      if (keys['e'] || keys['E']) {
+        buildings.forEach(b => {
+          const dist = Math.hypot(b.x - player.x, b.y - player.y);
+          if (dist < 50 && b.health > 0) {
+            b.health -= 5;
+            player.resources[b.material] = Math.min(player.resources[b.material] + 3, player.maxResources);
+          }
+        });
+      }
+
+      // Check zone damage
+      const distToZone = Math.hypot(zone.x - player.x, zone.y - player.y);
+      if (distToZone > zone.radius) {
+        player.health -= zone.damagePerTick / 60;
+      }
+
+      // Check game over
+      if (player.health <= 0) {
+        endGame(false);
+      }
+    }
+
+    // Update enemies
+    function updateEnemies() {
+      enemies = enemies.filter(enemy => enemy.health > 0);
+
+      enemies.forEach(enemy => {
+        // Simple AI
+        const distToPlayer = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+
+        if (distToPlayer < 300) {
+          // Chase player
+          const dx = player.x - enemy.x;
+          const dy = player.y - enemy.y;
+          const dist = Math.hypot(dx, dy);
+          enemy.vx = (dx / dist) * enemy.speed;
+          enemy.vy = (dy / dist) * enemy.speed;
+          enemy.angle = Math.atan2(dy, dx);
+
+          // Shoot
+          if (distToPlayer < 250 && Date.now() - enemy.lastShoot > 150) {
+            fireShot(enemy.x, enemy.y, enemy.angle, 10, true);
+            enemy.lastShoot = Date.now();
+            enemy.ammo--;
+          }
+        } else {
+          // Random movement
+          if (Math.random() < 0.02) {
+            enemy.targetX = Math.random() * mapSize;
+            enemy.targetY = Math.random() * mapSize;
+          }
+          const dx = enemy.targetX - enemy.x;
+          const dy = enemy.targetY - enemy.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 50) {
+            enemy.vx = (dx / dist) * enemy.speed;
+            enemy.vy = (dy / dist) * enemy.speed;
+          }
+        }
+
+        enemy.x += enemy.vx;
+        enemy.y += enemy.vy;
+
+        // Keep in map
+        enemy.x = Math.max(0, Math.min(mapSize, enemy.x));
+        enemy.y = Math.max(0, Math.min(mapSize, enemy.y));
+
+        // Zone damage
+        const distToZone = Math.hypot(zone.x - enemy.x, zone.y - enemy.y);
+        if (distToZone > zone.radius) {
+          enemy.health -= zone.damagePerTick / 60;
+        }
+      });
+    }
+
+    // Fire shot
+    function fireShot(fromX, fromY, angle, damage, isEnemy = false) {
+      for (let i = 0; i < 5; i++) {
+        particles.push({
+          x: fromX,
+          y: fromY,
+          vx: Math.cos(angle + (Math.random() - 0.5) * 0.3) * (Math.random() * 4 + 3),
+          vy: Math.sin(angle + (Math.random() - 0.5) * 0.3) * (Math.random() * 4 + 3),
+          color: isEnemy ? '#ffaa00' : '#ffff00',
+          life: 30,
+          maxLife: 30
+        });
+      }
+
+      // Check hits
+      if (!isEnemy) {
+        enemies.forEach(enemy => {
+          const dist = Math.hypot(enemy.x - fromX, enemy.y - fromY);
+          const dx = Math.cos(angle);
+          const dy = Math.sin(angle);
+          const toEnemy = Math.hypot(enemy.x - fromX, enemy.y - fromY);
+          const cross = Math.abs((enemy.x - fromX) * (-dy) - (enemy.y - fromY) * (-dx));
+
+          if (cross < 20 && toEnemy < 400) {
+            const actualDamage = Math.max(1, damage - cross / 5);
+            if (enemy.shield > 0) {
+              enemy.shield = Math.max(0, enemy.shield - actualDamage);
+            } else {
+              enemy.health -= actualDamage;
+            }
+
+            if (enemy.health <= 0) {
+              gameState.kills++;
+              gameState.score += 100;
+              gameState.playersLeft--;
+              spawnLoot();
+            }
+          }
+        });
+      }
+    }
+
+    // Weapon selection
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'q' || e.key === 'Q') player.weapon = 'ar';
+      if (e.key === 'w' || e.key === 'W') player.weapon = 'smg';
+      if (e.key === 'e' || e.key === 'E') player.weapon = 'sniper';
+      if (e.key === 'r' || e.key === 'R') player.weapon = 'shotgun';
+    });
+
+    // Event listeners
+    document.addEventListener('keydown', (e) => {
+      keys[e.key] = true;
+    });
+
+    document.addEventListener('keyup', (e) => {
+      keys[e.key] = false;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+      player.angle = Math.atan2(mouseY - gameHeight / 2, mouseX - gameWidth / 2);
+    });
+
+    document.addEventListener('mousedown', () => {
+      const weapon = weapons[player.weapon];
+      const now = Date.now();
+
+      if (now - lastShoot > weapon.firerate && player.ammo[player.weapon] > 0) {
+        fireShot(player.x, player.y, player.angle, weapon.damage);
+        player.ammo[player.weapon]--;
+        lastShoot = now;
+      }
+    });
+
+    // Update zone
+    function updateZone() {
+      waveTimer++;
+
+      if (waveTimer > 300) {
+        zone.x = Math.random() * mapSize * 0.8 + mapSize * 0.1;
+        zone.y = Math.random() * mapSize * 0.8 + mapSize * 0.1;
+        zone.radius *= zone.shrinkRate;
+        zone.phase++;
+        waveTimer = 0;
+
+        if (zone.phase < zone.maxPhases) {
+          waveActive = true;
+          document.getElementById('waveInfo').classList.add('show');
+          setTimeout(() => {
+            document.getElementById('waveInfo').classList.remove('show');
+          }, 3000);
+        }
+      }
+    }
+
+    // Update HUD
+    function updateHUD() {
+      document.getElementById('healthVal').textContent = Math.max(0, Math.floor(player.health));
+      document.getElementById('healthBar').style.width = (Math.max(0, player.health) / player.maxHealth) * 100 + '%';
+
+      document.getElementById('shieldVal').textContent = Math.floor(player.shield);
+      document.getElementById('shieldBar').style.width = (player.shield / player.maxShield) * 100 + '%';
+
+      document.getElementById('killsVal').textContent = gameState.kills;
+      document.getElementById('playersLeft').textContent = Math.max(1, gameState.playersLeft);
+
+      const weapon = weapons[player.weapon];
+      document.getElementById('weaponName').textContent = weapon.name;
+      document.getElementById('ammoText').textContent = `Munition: ${Math.max(0, Math.floor(player.ammo[player.weapon]))}/300`;
+
+      document.getElementById('woodVal').textContent = Math.floor(player.resources.wood);
+      document.getElementById('stoneVal').textContent = Math.floor(player.resources.stone);
+      document.getElementById('metalVal').textContent = Math.floor(player.resources.metal);
+    }
+
+    // Draw radar
+    function drawRadar() {
+      const radarSize = 120;
+      radarCtx.clearRect(0, 0, radarSize, radarSize);
+
+      // Background
+      radarCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      radarCtx.beginPath();
+      radarCtx.arc(radarSize / 2, radarSize / 2, radarSize / 2, 0, Math.PI * 2);
+      radarCtx.fill();
+
+      const scale = radarSize / 400;
+
+      // Zone
+      radarCtx.strokeStyle = '#ff0000';
+      radarCtx.lineWidth = 1;
+      radarCtx.beginPath();
+      radarCtx.arc(
+        radarSize / 2 + (zone.x - player.x) * scale,
+        radarSize / 2 + (zone.y - player.y) * scale,
+        zone.radius * scale,
+        0,
+        Math.PI * 2
+      );
+      radarCtx.stroke();
+
+      // Player
+      radarCtx.fillStyle = '#00ff00';
+      radarCtx.beginPath();
+      radarCtx.arc(radarSize / 2, radarSize / 2, 3, 0, Math.PI * 2);
+      radarCtx.fill();
+
+      // Enemies
+      radarCtx.fillStyle = '#ff0000';
+      enemies.forEach(enemy => {
+        radarCtx.beginPath();
+        radarCtx.arc(
+          radarSize / 2 + (enemy.x - player.x) * scale,
+          radarSize / 2 + (enemy.y - player.y) * scale,
+          2,
+          0,
+          Math.PI * 2
+        );
+        radarCtx.fill();
+      });
+    }
+
+    // End game
+    function endGame(won) {
+      gameState.running = false;
+      console.log(won ? '🏆 SIEG!' : '💀 AUSGESCHIEDEN! Kills: ' + gameState.kills + ' | Score: ' + Math.floor(gameState.score));
+    }
+
+    // Main game loop
+    function gameLoop() {
+      if (!gameState.running) return;
+
+      // Clear canvas
+      ctx.fillStyle = 'rgba(135, 206, 235, 0.1)';
+      ctx.fillRect(0, 0, gameWidth, gameHeight);
+
+      // Update
+      updatePlayer();
+      updateEnemies();
+      updateZone();
+
+      // Draw
+      drawBuildings();
+      drawLoot();
+      drawZone();
+      enemies.forEach(enemy => drawPlayer(enemy, false));
+      drawPlayer(player, true);
+      drawParticles();
+
+      // Draw radar
+      drawRadar();
+
+      // Update HUD
+      updateHUD();
+
+      // Check win condition
+      if (gameState.playersLeft <= 1 && gameState.running) {
+        endGame(true);
+      }
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Start game
+    spawnEnemies();
+    spawnLoot();
+    gameLoop();
+  </script>
+</body>
+</html>
