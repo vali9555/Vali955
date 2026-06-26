@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kernkraftwerk Simulator</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --metal: #20262f;
+      --metal-2: #2d353f;
+      --accent: #ffbe42;
+      --accent2: #ff6b35;
+      --text: #eff3f9;
+      --muted: #8fa6be;
+      --border: rgba(255,255,255,0.1);
+      --danger: #ff3333;
+      --warning: #ff9800;
+      --safe: #2ecc71;
+      --info: #40a9ff;
+      --critical: #ff1744;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      font-family: Inter, system-ui, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top, #2a1f1a 0%, #15110d 55%, #0a0704 100%);
+    }
+
+    .panel {
+      width: min(1120px, 100%);
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 1px;
+      border-radius: 26px;
+      overflow: hidden;
+      background: #1a1410;
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.35), 0 0 50px rgba(255, 107, 53, 0.15);
+    }
+
+    .panel-side {
+      background: linear-gradient(180deg, #1f1815 0%, #29201a 100%);
+      padding: 28px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .panel-side.right {
+      min-width: 380px;
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .brand {
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #ffd966;
+    }
+
+    .tag {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 182, 52, 0.12);
+      border: 1px solid rgba(255, 182, 52, 0.25);
+      font-size: 0.88rem;
+      color: #ffbe42;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .tag.danger {
+      background: rgba(255, 51, 51, 0.12);
+      border-color: rgba(255, 51, 51, 0.25);
+      color: #ff6b6b;
+    }
+
+    .status-board,
+    .card,
+    .kpi-row {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 22px;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .status-row,
+    .kpi {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-label,
+    .kpi-label {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .status-value,
+    .kpi-value {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: #6a6f79;
+      box-shadow: inset 0 0 2px rgba(0,0,0,0.5);
+    }
+
+    .indicator.on {
+      background: #2ecc71;
+      box-shadow: 0 0 10px rgba(46,204,113,0.35);
+    }
+
+    .indicator.warning {
+      background: var(--warning);
+      box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+      animation: blink 1s infinite;
+    }
+
+    .indicator.critical {
+      background: var(--critical);
+      box-shadow: 0 0 15px rgba(255, 23, 68, 0.6);
+      animation: blink 0.5s infinite;
+    }
+
+    @keyframes blink {
+      0%, 49%, 100% { opacity: 1; }
+      50%, 99% { opacity: 0.3; }
+    }
+
+    .controls {
+      display: grid;
+      gap: 18px;
+    }
+
+    .switch-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .switch-label {
+      display: grid;
+      gap: 4px;
+    }
+
+    .switch-label span {
+      font-weight: 700;
+    }
+
+    .switch-label small {
+      color: var(--muted);
+    }
+
+    .toggle {
+      width: 72px;
+      height: 36px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      inset: 4px auto 4px 4px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #dfe7f6;
+      transition: transform 0.2s ease;
+      transform: translateX(0);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.24);
+    }
+
+    .toggle.active {
+      background: rgba(46,204,113,0.18);
+      border-color: rgba(46,204,113,0.28);
+    }
+
+    .toggle.active::after {
+      transform: translateX(36px);
+      background: #fff;
+    }
+
+    .toggle.disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .toggle.disabled::after {
+      box-shadow: none;
+    }
+
+    .parameter {
+      display: grid;
+      gap: 10px;
+    }
+
+    .parameter label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+      color: #e7effa;
+    }
+
+    .parameter input[type='range'] {
+      width: 100%;
+      accent-color: var(--accent2);
+    }
+
+    .row {
+      display: grid;
+      gap: 18px;
+    }
+
+    .kpi-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .kpi {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(0, 0, 0, 0.18);
+      border: 1px solid rgba(255,255,255,0.07);
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .kpi strong {
+      font-size: 1.35rem;
+    }
+
+    .gauge {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 0.5;
+      background: radial-gradient(circle at 50% 160%, rgba(255,255,255,0.08), transparent 36%);
+      border-radius: 999px 999px 0 0;
+      overflow: hidden;
+    }
+
+    .meter {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px 999px 0 0;
+      background: linear-gradient(180deg, rgba(22,29,39,0.96), rgba(38,49,63,0.98));
+      box-shadow: inset 0 0 40px rgba(0,0,0,0.45);
+    }
+
+    .meter::before {
+      content: '';
+      position: absolute;
+      inset: 16px 12px 0 12px;
+      border-radius: 999px 999px 0 0;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .needle {
+      position: absolute;
+      left: 50%;
+      bottom: 14px;
+      width: 4px;
+      height: 44%;
+      background: linear-gradient(180deg, #ffff00, #ff9800);
+      transform-origin: bottom center;
+      transform: rotate(-90deg);
+      border-radius: 999px;
+      box-shadow: 0 0 18px rgba(255, 152, 0, 0.65);
+    }
+
+    .gauge-labels {
+      position: absolute;
+      inset: auto 16px 16px;
+      display: flex;
+      justify-content: space-between;
+      color: #8da6c9;
+      font-size: 0.92rem;
+    }
+
+    .gauge-labels span {
+      width: 20%;
+      text-align: center;
+    }
+
+    .meter-value {
+      display: grid;
+      gap: 4px;
+      text-align: center;
+    }
+
+    .meter-value strong {
+      font-size: 1.5rem;
+      letter-spacing: 0.04em;
+    }
+
+    .button-group {
+      display: grid;
+      gap: 12px;
+    }
+
+    button {
+      border: none;
+      border-radius: 18px;
+      min-height: 56px;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .start-button {
+      background: linear-gradient(135deg, #ff6b35, #d84315);
+    }
+
+    .stop-button {
+      background: linear-gradient(135deg, #4f5660, #2f343d);
+    }
+
+    .shutdown-button {
+      background: linear-gradient(135deg, #d32f2f, #b71c1c);
+    }
+
+    .diagnose-button {
+      background: linear-gradient(135deg, #3b6ef3, #1f4cc1);
+    }
+
+    .reset-button {
+      background: linear-gradient(135deg, #7a7f8d, #4a4f59);
+    }
+
+    .button-group button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 45px rgba(0,0,0,0.20);
+    }
+
+    .bar-container {
+      display: grid;
+      gap: 14px;
+    }
+
+    .bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .bar {
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(135deg, rgba(255,183,77,.9), rgba(255,152,0,.7));
+      width: 0%;
+      transition: width 0.35s ease;
+    }
+
+    .bar-fill.temp {
+      background: linear-gradient(135deg, rgba(255,152,0,.9), rgba(255,87,34,.8));
+    }
+
+    .bar-fill.critical {
+      background: linear-gradient(135deg, rgba(255,23,68,.9), rgba(211,47,47,.8));
+    }
+
+    .status-small {
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .log {
+      overflow-y: auto;
+      min-height: 310px;
+      max-height: 540px;
+      background: rgba(0, 0, 0, 0.24);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 20px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
+      color: #c6d0e5;
+      line-height: 1.65;
+    }
+
+    .log-entry {
+      margin: 0 0 12px;
+    }
+
+    .alert-box {
+      display: none;
+      gap: 12px;
+      align-items: center;
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: rgba(255, 51, 51, 0.1);
+      border: 1px solid rgba(255, 51, 51, 0.22);
+      color: #fdd7d7;
+    }
+
+    .alert-box.warning {
+      background: rgba(255, 152, 0, 0.1);
+      border: 1px solid rgba(255, 152, 0, 0.22);
+      color: #ffe0b2;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <section class="panel">
+    <div class="panel-side">
+      <div class="panel-title">
+        <div class="brand">Reaktor Control</div>
+        <div class="tag" id="reactorTag">Bereit</div>
+      </div>
+
+      <div class="status-board">
+        <div class="status-row">
+          <span class="status-label">Reaktor Status</span>
+          <span class="status-value" id="stateText">Heruntergefahren</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Kettenreaktion</span>
+          <span class="status-value"><span class="indicator" id="chainLight"></span> <span id="chainState">Inaktiv</span></span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Kühlkreislauf</span>
+          <span class="status-value"><span class="indicator" id="coolingLight"></span> <span id="coolingState">Bereit</span></span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Notkühlung</span>
+          <span class="status-value"><span class="indicator" id="emergencyLight"></span> <span id="emergencyState">Bereit</span></span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Druckentlastung</span>
+          <span class="status-value"><span class="indicator" id="releaseLight"></span> <span id="releaseState">Normal</span></span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Containment</span>
+          <span class="status-value"><span class="indicator" id="containmentLight"></span> <span id="containmentState">Sicher</span></span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="card">
+          <h2>Hochfahr-Sequenz</h2>
+          <div class="switch-row">
+            <div class="switch-label">
+              <span>Kühlmittelzirkulation</span>
+              <small>Primärkreislauf aktivieren</small>
+            </div>
+            <div class="toggle" id="coolingToggle" role="button" tabindex="0"></div>
+          </div>
+          <div class="switch-row">
+            <div class="switch-label">
+              <span>Notkühlung prüfen</span>
+              <small>Backup-Kühlsystem überprüfen</small>
+            </div>
+            <div class="toggle" id="emergencyToggle" role="button" tabindex="0"></div>
+          </div>
+          <div class="switch-row">
+            <div class="switch-label">
+              <span>Instrumentierung</span>
+              <small>Messsysteme aktivieren</small>
+            </div>
+            <div class="toggle" id="instrumentToggle" role="button" tabindex="0"></div>
+          </div>
+          <div class="switch-row">
+            <div class="switch-label">
+              <span>Steuerstäbe bereit</span>
+              <small>Kontrollstabsystem initialisieren</small>
+            </div>
+            <div class="toggle" id="rodsToggle" role="button" tabindex="0"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Reaktorleistung</h2>
+          <div class="gauge">
+            <div class="meter"></div>
+            <div class="needle" id="needle"></div>
+            <div class="gauge-labels">
+              <span>0%</span>
+              <span>25%</span>
+              <span>50%</span>
+              <span>75%</span>
+              <span>100%</span>
+            </div>
+          </div>
+          <div class="meter-value">
+            <strong id="meterValue">0%</strong>
+            <span>Thermische Leistung</span>
+          </div>
+          <div class="button-grid">
+            <button class="start-button" id="startButton" disabled>Reaktor starten</button>
+            <button class="stop-button" id="stopButton" disabled>Reaktor drosseln</button>
+            <button class="shutdown-button" id="shutdownButton">SCRAM (Notfall)</button>
+            <button class="reset-button" id="resetButton">Reset</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Betriebsmodus</h2>
+          <div class="switch-row">
+            <div class="switch-label">
+              <span>Automatische Regelung</span>
+              <small>Steuerstäbe passen sich automatisch an</small>
+            </div>
+            <div class="toggle" id="autoToggle" role="button" tabindex="0"></div>
+          </div>
+          <div class="switch-row">
+            <div class="switch-label">
+              <span>Sicherheitslevel LOW</span>
+              <small>Reduzierte Sicherheitsstandards</small>
+            </div>
+            <div class="toggle" id="lowSafetyToggle" role="button" tabindex="0"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Parameter-Feinsteuerung</h2>
+          <div class="parameter">
+            <label for="powerRange">Leistung <strong id="powerValue">0%</strong></label>
+            <input id="powerRange" type="range" min="0" max="100" value="0" disabled>
+          </div>
+          <div class="parameter">
+            <label for="rodsRange">Steuerstabposition <strong id="rodsValue">100%</strong></label>
+            <input id="rodsRange" type="range" min="0" max="100" value="100" disabled>
+          </div>
+          <div class="parameter">
+            <label for="tempRange">Zieltemperatur <strong id="tempValue">300 K</strong></label>
+            <input id="tempRange" type="range" min="300" max="600" value="300" disabled>
+          </div>
+          <div class="parameter">
+            <label for="pressureRange">Primärdruck <strong id="pressureValue">150 bar</strong></label>
+            <input id="pressureRange" type="range" min="100" max="200" value="150" disabled>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-side right">
+      <div class="card">
+        <h2>Reaktor-Parameter</h2>
+        <div class="kpi-row">
+          <div class="kpi">
+            <span class="kpi-label">Leistung (MW)</span>
+            <strong id="kpiPower">0 MW</strong>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Temperatur</span>
+            <strong id="kpiTemp">300 K</strong>
+          </div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi">
+            <span class="kpi-label">Primärdruck</span>
+            <strong id="kpiPressure">150 bar</strong>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Neutronenfluss</span>
+            <strong id="kpiNeutrons">0%</strong>
+          </div>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi">
+            <span class="kpi-label">Steuerstabposition</span>
+            <strong id="kpiRods">100%</strong>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Kühlmittelfluss</span>
+            <strong id="kpiFlow">0 m³/h</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Überwachung</h2>
+        <div class="bar-container">
+          <div class="bar-label">
+            <span>Reaktortemperatur</span>
+            <span id="tempPercent">300 K</span>
+          </div>
+          <div class="bar"><div class="bar-fill temp" id="tempBar"></div></div>
+          <div class="bar-label">
+            <span>Primärdruck</span>
+            <span id="pressurePercent">150 bar</span>
+          </div>
+          <div class="bar"><div class="bar-fill" id="pressureBar"></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Ereignisprotokoll</h2>
+        <div class="log" id="log">
+          <p class="log-entry">Reaktor initialisiert. Warte auf Hochfahrbefehl.</p>
+        </div>
+      </div>
+
+      <div class="alert-box" id="alertBox">
+        <span>⚠️</span>
+        <span id="alertText">Warnung: Sicherheitsparameter überschritten.</span>
+      </div>
+
+      <div class="card footer">
+        <p>Der Reaktor ist erst betriebsbereit, wenn Kühlkreislauf, Notkühlung, Instrumentierung und Steuerstäbe aktiviert wurden. Nach dem Start die Leistung schrittweise erhöhen. Bei kritischen Werten immer den Notfallabschalt-Knopf verwenden!</p>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    // DOM Elements
+    const coolingToggle = document.getElementById('coolingToggle');
+    const emergencyToggle = document.getElementById('emergencyToggle');
+    const instrumentToggle = document.getElementById('instrumentToggle');
+    const rodsToggle = document.getElementById('rodsToggle');
+    const startButton = document.getElementById('startButton');
+    const stopButton = document.getElementById('stopButton');
+    const shutdownButton = document.getElementById('shutdownButton');
+    const resetButton = document.getElementById('resetButton');
+    const stateText = document.getElementById('stateText');
+    const chainLight = document.getElementById('chainLight');
+    const chainState = document.getElementById('chainState');
+    const coolingLight = document.getElementById('coolingLight');
+    const coolingState = document.getElementById('coolingState');
+    const emergencyLight = document.getElementById('emergencyLight');
+    const emergencyState = document.getElementById('emergencyState');
+    const releaseLight = document.getElementById('releaseLight');
+    const releaseState = document.getElementById('releaseState');
+    const containmentLight = document.getElementById('containmentLight');
+    const containmentState = document.getElementById('containmentState');
+    const needle = document.getElementById('needle');
+    const meterValue = document.getElementById('meterValue');
+    const powerRange = document.getElementById('powerRange');
+    const rodsRange = document.getElementById('rodsRange');
+    const tempRange = document.getElementById('tempRange');
+    const pressureRange = document.getElementById('pressureRange');
+    const powerValue = document.getElementById('powerValue');
+    const rodsValue = document.getElementById('rodsValue');
+    const tempValue = document.getElementById('tempValue');
+    const pressureValue = document.getElementById('pressureValue');
+    const kpiPower = document.getElementById('kpiPower');
+    const kpiTemp = document.getElementById('kpiTemp');
+    const kpiPressure = document.getElementById('kpiPressure');
+    const kpiNeutrons = document.getElementById('kpiNeutrons');
+    const kpiRods = document.getElementById('kpiRods');
+    const kpiFlow = document.getElementById('kpiFlow');
+    const autoToggle = document.getElementById('autoToggle');
+    const lowSafetyToggle = document.getElementById('lowSafetyToggle');
+    const tempBar = document.getElementById('tempBar');
+    const pressureBar = document.getElementById('pressureBar');
+    const tempPercent = document.getElementById('tempPercent');
+    const pressurePercent = document.getElementById('pressurePercent');
+    const log = document.getElementById('log');
+    const alertBox = document.getElementById('alertBox');
+    const alertText = document.getElementById('alertText');
+    const reactorTag = document.getElementById('reactorTag');
+
+    // State Variables
+    let coolingReady = false;
+    let emergencyReady = false;
+    let instrumentReady = false;
+    let rodsReady = false;
+    let reactorRunning = false;
+    let temperature = 300;
+    let pressure = 150;
+    let power = 0;
+    let rodPosition = 100;
+    let engineInterval = null;
+    let lowSafety = false;
+
+    function writeLog(message, color = '#c6d0e5') {
+      const entry = document.createElement('p');
+      entry.className = 'log-entry';
+      entry.textContent = `${new Date().toLocaleTimeString('de-DE')} — ${message}`;
+      entry.style.color = color;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function setIndicator(element, state, label, textOn, textWarning, textOff) {
+      if (state === 'critical') {
+        element.classList.add('critical');
+        element.classList.remove('on', 'warning');
+        label.textContent = textWarning;
+      } else if (state === 'warning') {
+        element.classList.add('warning');
+        element.classList.remove('on', 'critical');
+        label.textContent = textWarning;
+      } else if (state === 'on') {
+        element.classList.add('on');
+        element.classList.remove('warning', 'critical');
+        label.textContent = textOn;
+      } else {
+        element.classList.remove('on', 'warning', 'critical');
+        label.textContent = textOff;
+      }
+    }
+
+    function updateNeedle() {
+      const progress = [coolingReady, emergencyReady, instrumentReady, rodsReady].filter(Boolean).length;
+      const baseAngle = reactorRunning ? -90 + (power / 100) * 180 : -90 + progress * 22.5;
+      needle.style.transform = `rotate(${baseAngle}deg)`;
+      meterValue.textContent = reactorRunning ? `${power}%` : `${Math.round(progress / 4 * 100)}%`;
+    }
+
+    function updateKPIs() {
+      kpiPower.textContent = `${(power * 10).toFixed(0)} MW`;
+      kpiTemp.textContent = `${temperature.toFixed(0)} K`;
+      kpiPressure.textContent = `${pressure.toFixed(0)} bar`;
+      kpiNeutrons.textContent = `${power}%`;
+      kpiRods.textContent = `${rodPosition.toFixed(0)}%`;
+      kpiFlow.textContent = `${(coolingReady ? power * 50 : 0).toFixed(0)} m³/h`;
+    }
+
+    function updateMonitorBars() {
+      tempPercent.textContent = `${temperature.toFixed(0)} K`;
+      tempBar.style.width = `${Math.max(0, Math.min(100, (temperature - 300) / 3))}%`;
+      pressurePercent.textContent = `${pressure.toFixed(0)} bar`;
+      pressureBar.style.width = `${Math.max(0, Math.min(100, (pressure - 100) / 1))}%`;
+    }
+
+    function updateControls() {
+      clearAlert();
+      coolingToggle.classList.toggle('active', coolingReady);
+      emergencyToggle.classList.toggle('active', emergencyReady);
+      instrumentToggle.classList.toggle('active', instrumentReady);
+      rodsToggle.classList.toggle('active', rodsReady);
+      const readyToStart = coolingReady && emergencyReady && instrumentReady && rodsReady;
+      startButton.disabled = !readyToStart || reactorRunning;
+      stopButton.disabled = !reactorRunning;
+      shutdownButton.disabled = false;
+      autoToggle.classList.toggle('disabled', reactorRunning);
+      lowSafetyToggle.classList.toggle('disabled', reactorRunning);
+      powerRange.disabled = !reactorRunning;
+      rodsRange.disabled = !reactorRunning;
+      tempRange.disabled = !reactorRunning;
+      pressureRange.disabled = !reactorRunning;
+      stateText.textContent = reactorRunning ? (power > 50 ? 'Vollast' : 'Teilast') : readyToStart ? 'Bereit' : 'Heruntergefahren';
+      reactorTag.textContent = reactorRunning ? (power > 80 ? 'KRITISCH' : power > 50 ? 'Läuft' : 'Anlauf') : 'Bereit';
+      reactorTag.classList.toggle('danger', reactorRunning && power > 80);
+      setIndicator(chainLight, reactorRunning ? 'on' : 'off', chainState, 'Aktiv', 'Aktiv', 'Inaktiv');
+      setIndicator(coolingLight, coolingReady ? 'on' : 'off', coolingState, 'Aktiv', 'Aktiv', 'Bereit');
+      setIndicator(emergencyLight, emergencyReady ? 'on' : 'off', emergencyState, 'Aktiv', 'Aktiv', 'Bereit');
+      updateParameterDisplays();
+      updateKPIs();
+      updateMonitorBars();
+    }
+
+    function clearAlert() {
+      alertText.textContent = '';
+      alertBox.style.display = 'none';
+    }
+
+    function showAlert(message, isWarning = false) {
+      alertText.textContent = message;
+      alertBox.classList.toggle('warning', isWarning);
+      alertBox.style.display = 'flex';
+      writeLog(`${isWarning ? 'Warnung' : 'FEHLER'}: ${message}`, isWarning ? '#ffa726' : '#f18a74');
+    }
+
+    function handleToggle(name) {
+      if (reactorRunning) {
+        showAlert('Reaktor läuft. Herunterfahren um Einstellungen zu ändern.', true);
+        return;
+      }
+      if (name === 'emergency' && !coolingReady) {
+        showAlert('Primärkreislauf muss zuerst aktiviert sein.', true);
+        return;
+      }
+      if (name === 'instrument' && !emergencyReady) {
+        showAlert('Notkühlung muss zuerst aktiviert sein.', true);
+        return;
+      }
+      if (name === 'rods' && !instrumentReady) {
+        showAlert('Instrumentierung muss zuerst aktiviert sein.', true);
+        return;
+      }
+
+      switch (name) {
+        case 'cooling':
+          if (coolingReady) return;
+          coolingReady = true;
+          writeLog('Kühlmittelzirkulation aktiviert. Primärkreislauf läuft.', '#8aff8a');
+          break;
+        case 'emergency':
+          if (emergencyReady) return;
+          emergencyReady = true;
+          writeLog('Notkühlung überprüft. Backup-Systeme einsatzbereit.', '#8ad1ff');
+          break;
+        case 'instrument':
+          if (instrumentReady) return;
+          instrumentReady = true;
+          writeLog('Instrumentierung aktiv. Messsysteme online.', '#9af3ff');
+          break;
+        case 'rods':
+          if (rodsReady) return;
+          rodsReady = true;
+          writeLog('Steuerstäbe initialisiert. Reaktor startbereit.', '#ffe38a');
+          break;
+      }
+      updateControls();
+    }
+
+    function startReactor() {
+      if (reactorRunning) return;
+      if (!coolingReady || !emergencyReady || !instrumentReady || !rodsReady) {
+        showAlert('System nicht vollständig vorbereitet. Alle Schritte erforderlich.', true);
+        return;
+      }
+      reactorRunning = true;
+      powerRange.value = 20;
+      rodsRange.value = 50;
+      tempRange.value = 350;
+      pressureRange.value = 155;
+      temperature = 350;
+      pressure = 155;
+      power = 20;
+      rodPosition = 50;
+      writeLog('Kettenreaktion gestartet! Reaktor läuft mit 20% Leistung.', '#a9ff9c');
+      startReactorSimulation();
+      updateControls();
+    }
+
+    function applyAutoMode() {
+      if (!reactorRunning) return;
+      rodsRange.value = Math.max(10, Math.min(70, 100 - power));
+      rodPosition = 100 - power;
+      updateParameterDisplays();
+      writeLog('Auto-Regelung aktiviert. Steuerstäbe angepasst.', '#c5d9ff');
+    }
+
+    function stopReactor() {
+      if (!reactorRunning) return;
+      reactorRunning = false;
+      power = 0;
+      writeLog('Kettenreaktion beendet. Reaktor läuft im Abkühlmodus.', '#f2d3a4');
+      updateControls();
+    }
+
+    function emergencyShutdown() {
+      reactorRunning = false;
+      power = 0;
+      rodPosition = 0;
+      rodsRange.value = 0;
+      temperature = 320;
+      writeLog('SCRAM aktiviert! Steuerstäbe vollständig eingefahren. Notkühlsysteme active.', '#ff6b6b');
+      showAlert('NOTFALL-ABSCHALTUNG! Steuerstäbe vollständig eingefahren.', true);
+      updateControls();
+    }
+
+    function updateParameterDisplays() {
+      powerValue.textContent = `${powerRange.value}%`;
+      rodsValue.textContent = `${rodsRange.value}%`;
+      tempValue.textContent = `${tempRange.value} K`;
+      pressureValue.textContent = `${pressureRange.value} bar`;
+      
+      power = parseInt(powerRange.value);
+      rodPosition = parseInt(rodsRange.value);
+      temperature = parseInt(tempRange.value);
+      pressure = parseInt(pressureRange.value);
+
+      updateKPIs();
+      if (reactorRunning) {
+        if (temperature > 600) {
+          showAlert('KRITISCH: Reaktortemperatur zu hoch! Notfallabschaltung empfohlen!');
+        } else if (temperature > 550) {
+          showAlert('Reaktortemperatur außerhalb des Nominalbereichs!', true);
+        }
+        if (pressure > 190) {
+          showAlert('Druckentlastung erforderlich!', true);
+        }
+        if (power > 80) {
+          setIndicator(releaseLight, 'warning', releaseState, 'Normal', 'Entlastung aktiv', 'Normal');
+        }
+      }
+      updateNeedle();
+    }
+
+    function startReactorSimulation() {
+      if (engineInterval) clearInterval(engineInterval);
+      engineInterval = setInterval(() => {
+        if (!reactorRunning) {
+          clearInterval(engineInterval);
+          temperature = Math.max(300, temperature - 2);
+          return;
+        }
+
+        // Temperature increases with power
+        temperature += (power / 100) * 0.5;
+        temperature = Math.min(temperature, 600);
+
+        // Pressure increases with power and temperature
+        pressure = 150 + (power / 100) * 40 + (temperature - 300) / 10;
+        pressure = Math.min(pressure, 200);
+
+        // Rods affect power
+        const rodEffect = (100 - rodPosition) / 100;
+        power = Math.max(0, Math.min(power + (rodEffect - 0.5) * 2, 100));
+
+        if (lowSafety && temperature > 450) {
+          writeLog('Niedrige Sicherheit: Übertemperatur-Schwelle nähert sich!', '#ffa726');
+        }
+
+        updateKPIs();
+        updateMonitorBars();
+      }, 500);
+    }
+
+    // Event Listeners
+    coolingToggle.addEventListener('click', () => handleToggle('cooling'));
+    coolingToggle.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleToggle('cooling'); });
+    emergencyToggle.addEventListener('click', () => handleToggle('emergency'));
+    emergencyToggle.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleToggle('emergency'); });
+    instrumentToggle.addEventListener('click', () => handleToggle('instrument'));
+    instrumentToggle.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleToggle('instrument'); });
+    rodsToggle.addEventListener('click', () => handleToggle('rods'));
+    rodsToggle.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleToggle('rods'); });
+    startButton.addEventListener('click', startReactor);
+    stopButton.addEventListener('click', stopReactor);
+    shutdownButton.addEventListener('click', emergencyShutdown);
+    resetButton.addEventListener('click', () => {
+      reactorRunning = false;
+      coolingReady = false;
+      emergencyReady = false;
+      instrumentReady = false;
+      rodsReady = false;
+      power = 0;
+      temperature = 300;
+      pressure = 150;
+      rodPosition = 100;
+      lowSafety = false;
+      powerRange.value = 0;
+      rodsRange.value = 100;
+      tempRange.value = 300;
+      pressureRange.value = 150;
+      log.innerHTML = '<p class="log-entry">Reaktor initialisiert. Warte auf Hochfahrbefehl.</p>';
+      writeLog('Alle Systeme zurückgesetzt.', '#b8c8db');
+      updateControls();
+    });
+
+    autoToggle.addEventListener('click', () => {
+      autoToggle.classList.toggle('active');
+      if (autoToggle.classList.contains('active')) {
+        applyAutoMode();
+      }
+    });
+
+    lowSafetyToggle.addEventListener('click', () => {
+      lowSafetyToggle.classList.toggle('active');
+      lowSafety = lowSafetyToggle.classList.contains('active');
+      if (lowSafety && reactorRunning) {
+        writeLog('Warnung: Niedrige Sicherheitsstandards aktiviert!', '#ffa726');
+      }
+    });
+
+    powerRange.addEventListener('input', updateParameterDisplays);
+    rodsRange.addEventListener('input', updateParameterDisplays);
+    tempRange.addEventListener('input', updateParameterDisplays);
+    pressureRange.addEventListener('input', updateParameterDisplays);
+
+    updateControls();
+  </script>
+</body>
+</html>
