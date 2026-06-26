@@ -272,7 +272,7 @@ function startRace() {
     carElements.forEach(car => car.style.left = '0px');
 
     const interval = setInterval(() => {
-        for (let i = 0; i < current.racers.length; i++) {
+        for (let i = 0; i < current.items.length; i++) {
             positions[i] += Math.random() * 8 + 1;
             carElements[i].style.left = positions[i] + 'px';
 
