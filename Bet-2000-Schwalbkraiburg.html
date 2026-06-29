@@ -15,6 +15,57 @@ body {
     padding: 20px;
 }
 
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.section {
+    background: #333;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.players-setup h2 {
+    margin-top: 0;
+}
+
+.player-input-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+}
+
+.player-input-row input {
+    flex: 1;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background: #444;
+    color: white;
+}
+
+.player-input-row button {
+    padding: 8px 16px;
+    background: #d84f4f;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+}
+
+.player-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    background: #444;
+    border-radius: 4px;
+    margin-bottom: 5px;
+}
+
 .track {
     width: 90%;
     max-width: 900px;
@@ -58,6 +109,15 @@ button {
     font-size: 18px;
     margin-top: 15px;
     cursor: pointer;
+    background: #0a7;
+    border: none;
+    border-radius: 4px;
+    color: white;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 select {
@@ -97,37 +157,101 @@ select {
     margin-top: 20px;
     min-height: 32px;
 }
+
+.winner-info {
+    background: #2a2a2a;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+    display: none;
+}
+
+.winner-info.show {
+    display: block;
+}
+
+.winner-name-edit {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+    align-items: center;
+}
+
+.winner-name-edit input {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    background: #444;
+    color: white;
+    font-size: 16px;
+}
+
+.winner-name-edit button {
+    padding: 8px 16px;
+    background: #0a7;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+}
 </style>
 </head>
 <body>
 
-<h1>🏁 Bet 2000</h1>
-<p>Wähle ein oder mehrere Teilnehmer aus und setze auf das Rennen.</p>
+<div class="container">
+    <h1>🏁 Bet 2000</h1>
+    <p>Wähle ein oder mehrere Teilnehmer aus und setze auf das Rennen.</p>
 
-<p>
-Spielart:
-<select id="gameType">
-    <option value="F1">F1</option>
-    <option value="Menschen">Menschen</option>
-    <option value="Autos">Autos</option>
-    <option value="Pferde">Pferde</option>
-</select>
-</p>
+    <div class="section players-setup">
+        <h2>Spieler hinzufügen</h2>
+        <div id="playersContainer"></div>
+        <div class="player-input-row">
+            <input type="text" id="newPlayerName" placeholder="Spielername eingeben">
+            <button onclick="addPlayer()">Spieler hinzufügen</button>
+        </div>
+    </div>
 
-<p>Teilnehmer:</p>
-<div id="carChooser"></div>
+    <div class="section">
+        <p>
+            Spielart:
+            <select id="gameType">
+                <option value="F1">F1</option>
+                <option value="Menschen">Menschen</option>
+                <option value="Autos">Autos</option>
+                <option value="Pferde">Pferde</option>
+            </select>
+        </p>
 
-<p>
-Einsatz (Schwalbtahler):
-<input id="betAmount" type="number" value="1" min="1">
-</p>
+        <p>Teilnehmer:</p>
+        <div id="carChooser"></div>
 
-<p id="payoutInfo">Wähle Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.</p>
+        <p>
+            Einsatz pro Spieler (Schwalbtahler):
+            <input id="betAmount" type="number" value="1" min="1">
+        </p>
 
-<button id="startButton">Rennen starten</button>
+        <p id="payoutInfo">Wähle Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.</p>
 
-<div id="tracks"></div>
-<h2 id="result"></h2>
+        <button id="startButton">Rennen starten</button>
+    </div>
+
+    <div id="tracks"></div>
+    <h2 id="result"></h2>
+
+    <div id="winnerInfo" class="winner-info">
+        <h2>🎉 Gewinner</h2>
+        <p id="winnerDisplayName" style="font-size: 20px; margin: 10px 0;"></p>
+        <p id="winnings" style="font-size: 18px; color: #0f9;"></p>
+        <div class="winner-name-edit">
+            <label>Namen ändern:</label>
+            <input type="text" id="editWinnerName" placeholder="Gewinnername">
+            <button onclick="saveWinnerName()">Speichern</button>
+        </div>
+    </div>
+</div>
+
+<p style="margin-top: 40px; color: #888; font-size: 14px;">gemacht von Valentin G. 7d</p>
 
 <script>
 const gameType = document.getElementById('gameType');
@@ -138,6 +262,11 @@ const carChooser = document.getElementById('carChooser');
 const betAmount = document.getElementById('betAmount');
 const startButton = document.getElementById('startButton');
 const selectedCars = new Set();
+const playersContainer = document.getElementById('playersContainer');
+const winnerInfo = document.getElementById('winnerInfo');
+
+let players = [];
+let currentWinner = null;
 
 const gameTypes = {
     F1: {
@@ -182,6 +311,38 @@ const gameTypes = {
     }
 };
 
+function addPlayer() {
+    const nameInput = document.getElementById('newPlayerName');
+    const name = nameInput.value.trim();
+    
+    if (name === '') {
+        alert('Bitte einen Namen eingeben');
+        return;
+    }
+    
+    players.push(name);
+    nameInput.value = '';
+    renderPlayers();
+}
+
+function removePlayer(index) {
+    players.splice(index, 1);
+    renderPlayers();
+}
+
+function renderPlayers() {
+    playersContainer.innerHTML = '';
+    players.forEach((player, index) => {
+        const div = document.createElement('div');
+        div.className = 'player-item';
+        div.innerHTML = `
+            <span>${player}</span>
+            <button onclick="removePlayer(${index})" style="padding: 4px 8px; font-size: 12px;">Entfernen</button>
+        `;
+        playersContainer.appendChild(div);
+    });
+}
+
 function getCurrentGame() {
     return gameTypes[gameType.value];
 }
@@ -192,6 +353,7 @@ function renderGame() {
     carChooser.innerHTML = '';
     selectedCars.clear();
     result.textContent = '';
+    winnerInfo.classList.remove('show');
     updatePayoutInfo();
 
     for (let i = 0; i < current.items.length; i++) {
@@ -231,18 +393,24 @@ function toggleCarSelection(index, button) {
 function updatePayoutInfo() {
     const count = selectedCars.size;
     const bet = parseInt(betAmount.value, 10);
-    if (count === 0 || !bet || bet <= 0) {
-        payoutInfo.textContent = 'Wähle Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.';
+    if (count === 0 || !bet || bet <= 0 || players.length === 0) {
+        payoutInfo.textContent = 'Wähle Spieler, Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.';
         return;
     }
-    const payout = Math.round(bet * 6 / count);
-    payoutInfo.textContent = `Bei ${count} Tipp(s) und ${bet} Schwalbtahler Einsatz beträgt der mögliche Gewinn ${payout} Schwalbtahler.`;
+    const totalBet = bet * players.length;
+    const payout = Math.round(totalBet * 3 / count);
+    payoutInfo.textContent = `Bei ${count} Tipp(s), ${players.length} Spieler und ${bet} Schwalbtahler Einsatz pro Spieler beträgt der mögliche Gewinn ${payout} Schwalbtahler.`;
 }
 
 function startRace() {
     const current = getCurrentGame();
     const chosenIndices = Array.from(selectedCars);
     const bet = parseInt(betAmount.value, 10);
+
+    if (players.length === 0) {
+        alert('Bitte füge mindestens einen Spieler hinzu.');
+        return;
+    }
 
     if (chosenIndices.length === 0) {
         alert('Bitte wähle mindestens einen Teilnehmer aus.');
@@ -254,11 +422,13 @@ function startRace() {
         return;
     }
 
-    const payout = Math.round(bet * 6 / chosenIndices.length);
-    payoutInfo.textContent = `Bei ${chosenIndices.length} Tipp(s) und ${bet} Schwalbtahler Einsatz beträgt der mögliche Gewinn ${payout} Schwalbtahler.`;
+    const totalBet = bet * players.length;
+    const payout = Math.round(totalBet * 3 / chosenIndices.length);
+    payoutInfo.textContent = `Bei ${chosenIndices.length} Tipp(s), ${players.length} Spieler und ${bet} Schwalbtahler Einsatz pro Spieler beträgt der mögliche Gewinn ${payout} Schwalbtahler.`;
 
     result.textContent = '';
     startButton.disabled = true;
+    winnerInfo.classList.remove('show');
 
     const carElements = current.items.map((_, i) => document.getElementById('car' + i));
     const trackElements = Array.from(document.querySelectorAll('.track'));
@@ -281,10 +451,23 @@ function startRace() {
                 clearInterval(interval);
                 startButton.disabled = false;
 
-                if (chosenIndices.includes(i)) {
-                    result.textContent = `🎉 Teilnehmer ${i + 1} gewinnt! Einer deiner Tipps war richtig.`;
+                const randomPlayerIndex = Math.floor(Math.random() * players.length);
+                const winnerPlayerName = players[randomPlayerIndex];
+                const isWinningTip = chosenIndices.includes(i);
+
+                currentWinner = {
+                    participantIndex: i,
+                    playerName: winnerPlayerName,
+                    payout: isWinningTip ? payout : 0,
+                    won: isWinningTip
+                };
+
+                if (isWinningTip) {
+                    result.textContent = `🎉 Teilnehmer ${i + 1} gewinnt!`;
+                    showWinnerInfo(winnerPlayerName, payout);
                 } else {
                     result.textContent = `❌ Teilnehmer ${i + 1} gewinnt. Deine Tipps lagen daneben.`;
+                    showWinnerInfo(winnerPlayerName, 0);
                 }
                 break;
             }
@@ -292,11 +475,28 @@ function startRace() {
     }, 30);
 }
 
+function showWinnerInfo(playerName, payout) {
+    document.getElementById('winnerDisplayName').textContent = `${playerName} gewinnt!`;
+    document.getElementById('winnings').textContent = `Gewinn: ${payout} Schwalbtahler`;
+    document.getElementById('editWinnerName').value = playerName;
+    winnerInfo.classList.add('show');
+}
+
+function saveWinnerName() {
+    const newName = document.getElementById('editWinnerName').value.trim();
+    if (newName === '') {
+        alert('Bitte einen Namen eingeben');
+        return;
+    }
+    currentWinner.playerName = newName;
+    document.getElementById('winnerDisplayName').textContent = `${newName} gewinnt!`;
+}
+
 gameType.addEventListener('change', renderGame);
 startButton.addEventListener('click', startRace);
+betAmount.addEventListener('change', updatePayoutInfo);
 
 renderGame();
 </script>
-<p style="margin-top: 20px; color: #ccc; font-size: 14px;">gemacht von Valentin G. 7d</p>
 </body>
 </html>
