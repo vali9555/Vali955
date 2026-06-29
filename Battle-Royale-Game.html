@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Battle Royale 2D</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: Arial, sans-serif;
+    }
+    #gameContainer {
+      position: relative;
+      width: 1000px;
+      height: 700px;
+      border: 3px solid #fff;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+    canvas { display: block; }
+    #ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .hud {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    }
+    #stats { top: 10px; left: 10px; min-width: 200px; }
+    #ammo { top: 10px; right: 10px; text-align: right; }
+    #inventory { bottom: 10px; left: 10px; display: flex; gap: 20px; }
+    #radar { bottom: 10px; right: 10px; }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="1000" height="700"></canvas>
+    <div id="ui">
+      <div id="stats" class="hud">
+        ❤️ Health: <span id="health">100</span>/100<br>
+        🛡️ Shield: <span id="shield">0</span>/50<br>
+        🧍 Kills: <span id="kills">0</span><br>
+        👥 Players: <span id="players">50</span>
+      </div>
+      <div id="ammo" class="hud">
+        <div id="weapon">AR - Gewehr</div>
+        <div>Munition: <span id="ammoText">30</span>/300</div>
+      </div>
+      <div id="inventory" class="hud">
+        🪵 <span id="wood">0</span> | 🪨 <span id="stone">0</span> | ⚙️ <span id="metal">0</span>
+      </div>
+      <canvas id="radarCanvas" width="120" height="120" style="position: absolute; bottom: 10px; right: 10px; border: 2px solid lime; border-radius: 50%; background: rgba(0,0,0,0.7);"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const radarCanvas = document.getElementById('radarCanvas');
+    const radarCtx = radarCanvas.getContext('2d');
+
+    const gameWidth = 1000, gameHeight = 700;
+    const mapSize = 2000;
+
+    // Player
+    const player = {
+      x: mapSize / 2, y: mapSize / 2,
+      width: 20, height: 25,
+      vx: 0, vy: 0, speed: 4,
+      health: 100, maxHealth: 100,
+      shield: 0, maxShield: 50,
+      angle: 0, weapon: 'ar',
+      ammo: { ar: 120, smg: 180, sniper: 30, shotgun: 24 },
+      resources: { wood: 0, stone: 0, metal: 0 }
+    };
+
+    const weapons = {
+      ar: { name: 'AR - Gewehr', damage: 15, firerate: 100, range: 400 },
+      smg: { name: 'SMG', damage: 8, firerate: 50, range: 250 },
+      sniper: { name: 'Sniper', damage: 80, firerate: 800, range: 800 },
+      shotgun: { name: 'Shotgun', damage: 70, firerate: 600, range: 150 }
+    };
+
+    let gameState = { running: true, kills: 0, score: 0, playersLeft: 50 };
+    let enemies = [];
+    let particles = [];
+    let loot = [];
+    let buildings = [];
+    let zone = { x: mapSize / 2, y: mapSize / 2, radius: 400 };
+
+    const keys = {};
+    let lastShoot = 0;
+
+    // Spawn
+    function spawn() {
+      enemies = [];
+      for (let i = 0; i < 49; i++) {
+        enemies.push({
+          x: Math.random() * mapSize, y: Math.random() * mapSize,
+          vx: 0, vy: 0, health: 100,
+          angle: 0, ammo: 100, ai: true
+        });
+      }
+
+      loot = [];
+      for (let i = 0; i < 40; i++) {
+        loot.push({
+          x: Math.random() * mapSize,
+          y: Math.random() * mapSize,
+          type: Math.random() > 0.5 ? 'ammo' : 'health'
+        });
+      }
+
+      for (let i = 0; i < 60; i++) {
+        buildings.push({
+          x: Math.random() * mapSize,
+          y: Math.random() * mapSize,
+          w: 40, h: 40, health: 100,
+          mat: ['wood', 'stone', 'metal'][Math.floor(Math.random() * 3)]
+        });
+      }
+    }
+
+    // Draw
+    function draw() {
+      ctx.fillStyle = '#87ceeb';
+      ctx.fillRect(0, 0, gameWidth, gameHeight);
+
+      // Buildings
+      buildings.forEach(b => {
+        const sx = b.x - (player.x - gameWidth / 2);
+        const sy = b.y - (player.y - gameHeight / 2);
+        if (sx > -50 && sx < gameWidth + 50 && sy > -50 && sy < gameHeight + 50) {
+          ctx.fillStyle = b.mat === 'wood' ? '#8B4513' : b.mat === 'stone' ? '#808080' : '#C0C0C0';
+          ctx.fillRect(sx - b.w / 2, sy - b.h / 2, b.w, b.h);
+        }
+      });
+
+      // Loot
+      loot.forEach(item => {
+        const sx = item.x - (player.x - gameWidth / 2);
+        const sy = item.y - (player.y - gameHeight / 2);
+        if (sx > 0 && sx < gameWidth && sy > 0 && sy < gameHeight) {
+          ctx.fillStyle = item.type === 'ammo' ? '#ffff00' : '#00ff00';
+          ctx.beginPath();
+          ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // Zone
+      const zx = zone.x - (player.x - gameWidth / 2);
+      const zy = zone.y - (player.y - gameHeight / 2);
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(zx, zy, zone.radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Enemies
+      enemies.forEach(e => {
+        const sx = e.x - (player.x - gameWidth / 2);
+        const sy = e.y - (player.y - gameHeight / 2);
+        if (sx > -30 && sx < gameWidth + 30 && sy > -30 && sy < gameHeight + 30) {
+          ctx.fillStyle = '#ff6b6b';
+          ctx.fillRect(sx - 10, sy - 12, 20, 25);
+        }
+      });
+
+      // Particles
+      particles.forEach((p, i) => {
+        const sx = p.x - (player.x - gameWidth / 2);
+        const sy = p.y - (player.y - gameHeight / 2);
+        ctx.fillStyle = p.c;
+        ctx.globalAlpha = p.life / 30;
+        ctx.fillRect(sx, sy, 3, 3);
+        ctx.globalAlpha = 1;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+      });
+
+      // Player
+      const px = gameWidth / 2;
+      const py = gameHeight / 2;
+      ctx.fillStyle = '#00ff00';
+      ctx.fillRect(px - 10, py - 12, 20, 25);
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + Math.cos(player.angle) * 15, py + Math.sin(player.angle) * 15);
+      ctx.stroke();
+
+      // Radar
+      radarCtx.fillStyle = 'rgba(0,0,0,0.7)';
+      radarCtx.fillRect(0, 0, 120, 120);
+      radarCtx.fillStyle = '#00ff00';
+      radarCtx.beginPath();
+      radarCtx.arc(60, 60, 3, 0, Math.PI * 2);
+      radarCtx.fill();
+      radarCtx.fillStyle = '#ff0000';
+      const scale = 120 / 400;
+      enemies.forEach(e => {
+        radarCtx.beginPath();
+        radarCtx.arc(60 + (e.x - player.x) * scale, 60 + (e.y - player.y) * scale, 2, 0, Math.PI * 2);
+        radarCtx.fill();
+      });
+    }
+
+    // Update
+    function update() {
+      player.vx = 0;
+      player.vy = 0;
+      if (keys['w'] || keys['W']) player.vy -= player.speed;
+      if (keys['s'] || keys['S']) player.vy += player.speed;
+      if (keys['a'] || keys['A']) player.vx -= player.speed;
+      if (keys['d'] || keys['D']) player.vx += player.speed;
+
+      player.x += player.vx;
+      player.y += player.vy;
+      player.x = Math.max(0, Math.min(mapSize, player.x));
+      player.y = Math.max(0, Math.min(mapSize, player.y));
+
+      // Collect loot
+      loot = loot.filter(item => {
+        if (Math.hypot(item.x - player.x, item.y - player.y) < 30) {
+          if (item.type === 'ammo') player.ammo[player.weapon] = Math.min(300, player.ammo[player.weapon] + 30);
+          if (item.type === 'health') player.health = Math.min(100, player.health + 30);
+          gameState.score += 10;
+          return false;
+        }
+        return true;
+      });
+
+      // Mine
+      if (keys['e'] || keys['E']) {
+        buildings.forEach(b => {
+          if (Math.hypot(b.x - player.x, b.y - player.y) < 50 && b.health > 0) {
+            b.health -= 3;
+            player.resources[b.mat] = Math.min(500, player.resources[b.mat] + 2);
+          }
+        });
+      }
+
+      // Enemies
+      enemies = enemies.filter(e => e.health > 0);
+      enemies.forEach(e => {
+        const dist = Math.hypot(e.x - player.x, e.y - player.y);
+        if (dist < 300) {
+          const dx = player.x - e.x;
+          const dy = player.y - e.y;
+          const d = Math.hypot(dx, dy);
+          e.vx = (dx / d) * 2;
+          e.vy = (dy / d) * 2;
+          e.angle = Math.atan2(dy, dx);
+          if (Math.random() < 0.1) {
+            for (let i = 0; i < 3; i++) {
+              particles.push({
+                x: e.x, y: e.y,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
+                c: '#ffaa00', life: 30
+              });
+            }
+          }
+        }
+        e.x += e.vx;
+        e.y += e.vy;
+        e.x = Math.max(0, Math.min(mapSize, e.x));
+        e.y = Math.max(0, Math.min(mapSize, e.y));
+      });
+
+      // HUD
+      document.getElementById('health').textContent = Math.max(0, Math.floor(player.health));
+      document.getElementById('shield').textContent = Math.floor(player.shield);
+      document.getElementById('kills').textContent = gameState.kills;
+      document.getElementById('players').textContent = gameState.playersLeft;
+      document.getElementById('weapon').textContent = weapons[player.weapon].name;
+      document.getElementById('ammoText').textContent = Math.max(0, Math.floor(player.ammo[player.weapon]));
+      document.getElementById('wood').textContent = Math.floor(player.resources.wood);
+      document.getElementById('stone').textContent = Math.floor(player.resources.stone);
+      document.getElementById('metal').textContent = Math.floor(player.resources.metal);
+
+      if (player.health <= 0) {
+        console.log(`💀 GAME OVER - Kills: ${gameState.kills}, Score: ${Math.floor(gameState.score)}`);
+        gameState.running = false;
+      }
+    }
+
+    // Input
+    document.addEventListener('keydown', (e) => {
+      keys[e.key] = true;
+      if (e.key === 'q' || e.key === 'Q') player.weapon = 'ar';
+      if (e.key === 'w' || e.key === 'W') player.weapon = 'smg';
+      if (e.key === 'e' || e.key === 'E') player.weapon = 'sniper';
+      if (e.key === 'r' || e.key === 'R') player.weapon = 'shotgun';
+    });
+
+    document.addEventListener('keyup', (e) => {
+      keys[e.key] = false;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      player.angle = Math.atan2(my - gameHeight / 2, mx - gameWidth / 2);
+    });
+
+    document.addEventListener('mousedown', () => {
+      const weapon = weapons[player.weapon];
+      if (Date.now() - lastShoot > weapon.firerate && player.ammo[player.weapon] > 0) {
+        for (let i = 0; i < 5; i++) {
+          particles.push({
+            x: player.x, y: player.y,
+            vx: Math.cos(player.angle) * (Math.random() * 4 + 2),
+            vy: Math.sin(player.angle) * (Math.random() * 4 + 2),
+            c: '#ffff00', life: 30
+          });
+        }
+        
+        enemies.forEach(e => {
+          const dist = Math.hypot(e.x - player.x, e.y - player.y);
+          if (dist < weapon.range) {
+            e.health -= weapon.damage;
+            if (e.health <= 0) {
+              gameState.kills++;
+              gameState.score += 100;
+              gameState.playersLeft--;
+              spawn();
+            }
+          }
+        });
+
+        player.ammo[player.weapon]--;
+        lastShoot = Date.now();
+      }
+    });
+
+    // Game loop
+    function gameLoop() {
+      if (gameState.running) {
+        update();
+        draw();
+      }
+      requestAnimationFrame(gameLoop);
+    }
+
+    spawn();
+    gameLoop();
+  </script>
+</body>
+</html>
