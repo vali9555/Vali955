@@ -272,6 +272,63 @@ const winnerInfo = document.getElementById('winnerInfo');
 
 let players = [];
 let currentWinner = null;
+let raceInterval = null;
+const PRIZE_MULTIPLIER = 3;
+// BroadcastChannel für Live-Steuerung
+let bc = null;
+try {
+    bc = new BroadcastChannel('bet2000');
+    bc.onmessage = (ev) => {
+        const msg = ev.data || {};
+        const action = msg.action;
+        const payload = msg.payload;
+        if (!action) return;
+        switch(action) {
+            case 'addPlayer':
+                if (payload && payload.name) { players.push({ name: payload.name, bet: payload.bet || 1, picks: payload.picks || [], weight: payload.weight || 1 }); renderPlayers(); updatePayoutInfo(); }
+                break;
+            case 'setMultiplier':
+                if (payload && typeof payload.multiplier === 'number') { window.PRIZE_MULTIPLIER = payload.multiplier; }
+                break;
+            case 'setGameType':
+                if (payload && payload.gameType) { gameType.value = payload.gameType; renderGame(); renderPlayers(); }
+                break;
+            case 'startRace':
+                startRace();
+                break;
+            case 'forceFinish':
+                // payload.index = participant index
+                if (typeof payload?.index === 'number') {
+                    // emulate finish for participant
+                    if (raceInterval) { clearInterval(raceInterval); raceInterval = null; }
+                    const i = payload.index;
+                    const winners = players.map((p, idx) => ({...p, index: idx})).filter(p => p.picks.includes(i));
+                    const payout = Math.round(players.reduce((s,p)=>s+(parseInt(p.bet,10)||0),0) * (window.PRIZE_MULTIPLIER||PRIZE_MULTIPLIER) / Math.max(1, (new Set(players.flatMap(p=>p.picks))).size));
+                    currentWinner = { participantIndex: i, winners: winners.map(w=>({name:w.name, index:w.index})), payout };
+                    if (winners.length>0) { result.textContent = `🎉 Teilnehmer ${i+1} gewinnt!`; showWinnerInfo(winners,payout,i); } else { result.textContent = `❌ Teilnehmer ${i+1} gewinnt. Keine Spieler hatten diesen Tipp.`; showWinnerInfo([],0,i); }
+                }
+                break;
+            case 'editWinnerName':
+                if (payload && payload.name) { document.getElementById('editWinnerName').value = payload.name; saveWinnerName(); }
+                break;
+            case 'setPlayerPicks':
+                // payload: {index, picks: [int,...]}
+                if (payload && typeof payload.index === 'number' && Array.isArray(payload.picks)) {
+                    const p = players[payload.index]; if (p) { p.picks = payload.picks.slice(); renderPlayers(); updatePayoutInfo(); }
+                }
+                break;
+            case 'setPlayerWeight':
+                // payload: {index, weight}
+                if (payload && typeof payload.index === 'number' && typeof payload.weight === 'number') { const pp = players[payload.index]; if (pp) { pp.weight = payload.weight; renderPlayers(); updatePayoutInfo(); } }
+                break;
+            case 'setPlayerBet':
+                if (payload && typeof payload.index === 'number' && typeof payload.bet === 'number') { const p = players[payload.index]; if (p) { p.bet = payload.bet; renderPlayers(); updatePayoutInfo(); } }
+                break;
+            default:
+                console.log('Unknown action', action, payload);
+        }
+    };
+} catch (e) { console.warn('BroadcastChannel not available', e); }
 const PRIZE_MULTIPLIER = 3;
 
 const gameTypes = {
@@ -327,7 +384,7 @@ function addPlayer() {
     }
 
     // Spieler als Objekt: Name, Einsatz, gewählte Tipps (Start-Einsatz 1)
-    players.push({ name, bet: 1, picks: [] });
+    players.push({ name, bet: 1, picks: [], weight: 1 });
     nameInput.value = '';
     renderPlayers();
     updatePayoutInfo();
@@ -359,6 +416,7 @@ function renderPlayers() {
             <div style="display:flex;gap:8px;align-items:center;width:100%;">
                 <strong style="flex:1">${player.name}</strong>
                 <input type="number" min="1" value="${player.bet}" data-player-bet="${index}" style="width:90px;padding:6px;border-radius:4px;background:#444;border:1px solid #555;color:white;"> 
+                <input type="number" min="1" value="${player.weight || 1}" data-player-weight="${index}" style="width:70px;padding:6px;border-radius:4px;background:#333;border:1px solid #555;color:#0f9;" disabled title="Gewicht (wird vom Live-Controller gesetzt)"> 
                 <button onclick="removePlayer(${index})" style="padding: 4px 8px; font-size: 12px;">Entfernen</button>
             </div>
             ${picksHtml}
@@ -503,11 +561,20 @@ function startRace() {
                     result.textContent = `🎉 Teilnehmer ${i + 1} gewinnt!`;
                     showWinnerInfo(winners, payout, i);
                 } else {
-                    // Randomly pick a player to show as owner of the result (same UX as before)
-                    const randomPlayerIndex = Math.floor(Math.random() * players.length);
-                    const winnerPlayerName = players[randomPlayerIndex].name;
-                    result.textContent = `❌ Teilnehmer ${i + 1} gewinnt. Keine Spieler hatten diesen Tipp.`;
-                    showWinnerInfo([], 0, i, winnerPlayerName);
+                        // If no player predicted the winner, choose a player by weight
+                        function weightedRandomIndex(arr) {
+                            const total = arr.reduce((s,p)=>s+(p.weight||1),0);
+                            let r = Math.random() * total;
+                            for (let k=0;k<arr.length;k++){
+                                r -= (arr[k].weight||1);
+                                if (r <= 0) return k;
+                            }
+                            return arr.length - 1;
+                        }
+                        const randomPlayerIndex = weightedRandomIndex(players);
+                        const winnerPlayerName = players[randomPlayerIndex].name;
+                        result.textContent = `❌ Teilnehmer ${i + 1} gewinnt. Keine Spieler hatten diesen Tipp.`;
+                        showWinnerInfo([], 0, i, winnerPlayerName);
                 }
                 break;
             }

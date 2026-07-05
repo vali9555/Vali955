@@ -1,0 +1,12 @@
+{
+  "name": "bet2000-live-server",
+  "version": "1.0.0",
+  "description": "Simple WebSocket server for Bet-2000 live control",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.13.0"
+  }
+}
