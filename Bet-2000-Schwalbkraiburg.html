@@ -329,7 +329,25 @@ try {
         }
     };
 } catch (e) { console.warn('BroadcastChannel not available', e); }
-const PRIZE_MULTIPLIER = 3;
+
+// Versuch, per WebSocket mit dem Server zu verbinden (Fallback auf BroadcastChannel)
+let wsClient = null;
+try {
+    const wsUrl = `ws://${location.hostname}:8080`;
+    wsClient = new WebSocket(wsUrl);
+    wsClient.onopen = () => console.log('WS connected to', wsUrl);
+    wsClient.onmessage = (ev) => {
+        try {
+            const msg = JSON.parse(ev.data);
+            // Reuse same handler as BroadcastChannel
+            if (msg && msg.action) {
+                bc && bc.onmessage && bc.onmessage({ data: msg });
+            }
+        } catch (e) { console.warn('Invalid WS message', e); }
+    };
+    wsClient.onclose = () => console.log('WS closed');
+    wsClient.onerror = (e) => console.warn('WS error', e);
+} catch (e) { console.warn('WebSocket not available', e); }
 
 const gameTypes = {
     F1: {
