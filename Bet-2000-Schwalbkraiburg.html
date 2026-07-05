@@ -325,8 +325,8 @@ function addPlayer() {
         return;
     }
 
-    // Spieler als Objekt: Name, Einsatz, gewählte Tipps
-    players.push({ name, bet: parseInt(betAmount.value, 10) || 1, picks: [] });
+    // Spieler als Objekt: Name, Einsatz, gewählte Tipps (Start-Einsatz 1)
+    players.push({ name, bet: 1, picks: [] });
     nameInput.value = '';
     renderPlayers();
     updatePayoutInfo();
@@ -551,7 +551,6 @@ function saveWinnerName() {
 
 gameType.addEventListener('change', () => { renderGame(); renderPlayers(); });
 startButton.addEventListener('click', startRace);
-betAmount.addEventListener('change', updatePayoutInfo);
 
 renderGame();
 renderPlayers();
