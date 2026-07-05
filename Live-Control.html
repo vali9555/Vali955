@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bet-2000 Live Control</title>
+<style>body{font-family:Arial;background:#111;color:#fff;padding:20px}input,button,select,textarea{font-size:16px;padding:8px;margin:6px 0} .box{background:#222;padding:12px;border-radius:8px;margin-bottom:12px}</style>
+</head>
+<body>
+<h1>Bet-2000 Live Control</h1>
+<div class="box">
+  <h3>Spieler hinzufügen</h3>
+  <input id="ctrlPlayerName" placeholder="Name">
+  <input id="ctrlPlayerBet" type="number" value="1" min="1" style="width:100px">
+  <button id="btnAddPlayer">Spieler hinzufügen</button>
+</div>
+
+<div class="box">
+  <h3>Allgemein</h3>
+  <label>Spielart: <select id="ctrlGameType"><option>F1</option><option>Menschen</option><option>Autos</option><option>Pferde</option></select></label>
+  <br>
+  <label>Multiplikator: <input id="ctrlMultiplier" type="number" value="3" style="width:80px"></label>
+  <br>
+  <button id="btnStart">Rennen starten</button>
+  <button id="btnForce">Teilnehmer gewinn (Index)</button>
+  <input id="ctrlIndex" type="number" style="width:80px" value="0">
+</div>
+
+<div class="box">
+  <h3>Roh-Nachricht senden</h3>
+  <textarea id="rawMsg" rows="4" style="width:100%">{"action":"startRace"}</textarea>
+  <button id="btnSendRaw">Senden</button>
+</div>
+
+<script>
+const bc = new BroadcastChannel('bet2000');
+document.getElementById('btnAddPlayer').addEventListener('click', ()=>{
+  const name = document.getElementById('ctrlPlayerName').value.trim();
+  const bet = parseInt(document.getElementById('ctrlPlayerBet').value,10)||1;
+  if(!name) return alert('Name eingeben');
+  bc.postMessage({action:'addPlayer', payload:{name, bet}});
+});
+document.getElementById('btnStart').addEventListener('click', ()=>{ bc.postMessage({action:'startRace'}); });
+document.getElementById('btnForce').addEventListener('click', ()=>{
+  const idx = parseInt(document.getElementById('ctrlIndex').value,10)||0; bc.postMessage({action:'forceFinish', payload:{index:idx}});
+});
+document.getElementById('btnSendRaw').addEventListener('click', ()=>{
+  try{ const msg = JSON.parse(document.getElementById('rawMsg').value); bc.postMessage(msg); } catch(e){ alert('Ungültiges JSON'); }
+});
+document.getElementById('ctrlMultiplier').addEventListener('change', ()=>{
+  const mul = parseInt(document.getElementById('ctrlMultiplier').value,10)||3; bc.postMessage({action:'setMultiplier', payload:{multiplier:mul}});
+});
+document.getElementById('ctrlGameType').addEventListener('change', ()=>{
+  bc.postMessage({action:'setGameType', payload:{gameType:document.getElementById('ctrlGameType').value}});
+});
+</script>
+</body>
+</html>
