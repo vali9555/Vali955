@@ -213,6 +213,12 @@ select {
 <div class="container">
     <h1>🏁 Bet 2000</h1>
     <p>Wähle ein oder mehrere Teilnehmer aus und setze auf das Rennen.</p>
+    <div style="margin-top:8px;">
+        <label style="font-size:14px;color:#ccc">WebSocket-Server (optional):</label>
+        <input id="wsServerInput" placeholder="ws://192.168.0.10:8080" style="width:260px;padding:6px;border-radius:4px;background:#333;border:1px solid #555;color:white;margin-left:8px">
+        <button id="wsConnectBtn" style="margin-left:8px;padding:6px 10px;">Verbinden</button>
+        <span id="wsStatus" style="margin-left:12px;color:#888;font-size:13px">(nicht verbunden)</span>
+    </div>
 
 
     <div class="section players-setup">
@@ -330,24 +336,36 @@ try {
     };
 } catch (e) { console.warn('BroadcastChannel not available', e); }
 
-// Versuch, per WebSocket mit dem Server zu verbinden (Fallback auf BroadcastChannel)
+// WebSocket client helper (manual connect) — falls verbunden, verwendet Spiel WS, sonst BroadcastChannel
 let wsClient = null;
-try {
-    const wsUrl = `ws://${location.hostname}:8080`;
-    wsClient = new WebSocket(wsUrl);
-    wsClient.onopen = () => console.log('WS connected to', wsUrl);
-    wsClient.onmessage = (ev) => {
-        try {
-            const msg = JSON.parse(ev.data);
-            // Reuse same handler as BroadcastChannel
-            if (msg && msg.action) {
-                bc && bc.onmessage && bc.onmessage({ data: msg });
-            }
-        } catch (e) { console.warn('Invalid WS message', e); }
-    };
-    wsClient.onclose = () => console.log('WS closed');
-    wsClient.onerror = (e) => console.warn('WS error', e);
-} catch (e) { console.warn('WebSocket not available', e); }
+function connectWS(url) {
+    try {
+        if (wsClient) { try { wsClient.close(); } catch(e){} wsClient = null; }
+        wsClient = new WebSocket(url);
+        const statusEl = document.getElementById('wsStatus');
+        wsClient.onopen = () => { console.log('WS connected to', url); if (statusEl) statusEl.textContent = '(verbunden)'; };
+        wsClient.onmessage = (ev) => {
+            try {
+                const msg = JSON.parse(ev.data);
+                if (msg && msg.action) { bc && bc.onmessage && bc.onmessage({ data: msg }); }
+            } catch (e) { console.warn('Invalid WS message', e); }
+        };
+        wsClient.onclose = () => { console.log('WS closed'); if (statusEl) statusEl.textContent = '(nicht verbunden)'; };
+        wsClient.onerror = (e) => { console.warn('WS error', e); if (statusEl) statusEl.textContent = '(fehler)'; };
+    } catch (e) { console.warn('WebSocket connect failed', e); }
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+    const btn = document.getElementById('wsConnectBtn');
+    const input = document.getElementById('wsServerInput');
+    if (btn && input) {
+        btn.addEventListener('click', ()=>{
+            const url = input.value.trim();
+            if (!url) return alert('Bitte WebSocket-URL eingeben (z. B. ws://192.168.0.10:8080)');
+            connectWS(url);
+        });
+    }
+});
 
 const gameTypes = {
     F1: {
