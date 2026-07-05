@@ -1,164 +1,17 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bet-2000 Live Control</title>
-<style>body{font-family:Arial;background:#111;color:#fff;padding:20px}input,button,select,textarea{font-size:16px;padding:8px;margin:6px 0} .box{background:#222;padding:12px;border-radius:8px;margin-bottom:12px}</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bet-2000 Live Control (vereinfachte Ansicht)</title>
+  <style>body{font-family:Arial, sans-serif;background:#111;color:#fff;padding:20px} .box{background:#222;padding:12px;border-radius:8px;margin-bottom:12px}</style>
 </head>
 <body>
-<h1>Bet-2000 Live Control</h1>
-<div class="box">
-  <h3>Spieler hinzufügen</h3>
-  <input id="ctrlPlayerName" placeholder="Name">
-  <input id="ctrlPlayerBet" type="number" value="1" min="1" style="width:100px">
-  <button id="btnAddPlayer" disabled>Spieler hinzufügen</button>
-</div>
-
-<div class="box">
-  <h3>Server / Allgemein</h3>
-  <p style="color:#888;font-size:13px">Verbinde mit dem WebSocket-Server (erforderlich für Fernsteuerung).</p>
-  <label>WebSocket-Server: <input id="serverUrl" placeholder="wss://example.com:8080" style="width:260px"></label>
-  <button id="btnConnect">Verbinden</button>
-  <div style="margin-top:8px">
-    <label style="display:block">Kontroll-Code: <input id="ctrlCode" placeholder="----" style="width:120px"></label>
-    <span id="connStatus" style="color:#888;font-size:13px">(nicht verbunden)</span>
+  <h1>Bet-2000 — Steuerung (vereinfacht)</h1>
+  <div class="box">
+    <p>Die Live‑Kontroll‑Optionen wurden entfernt. Nutze die Spielseite lokal unter <strong>/Bet-2000-Schwalbkraiburg.html</strong> für Einzelspieler‑Betrieb.</p>
+    <p>Wenn du später wieder Remote‑Control möchtest, behalte die Datei `Live-Control.html` und ich reaktiviere die Optionen.</p>
+    <p style="color:#888">Hinweis: Server Discovery zeigt die WS‑URL unter <code>/public-ws</code>.</p>
   </div>
-  <hr>
-  <label>Spielart: <select id="ctrlGameType"><option>F1</option><option>Menschen</option><option>Autos</option><option>Pferde</option></select></label>
-  <br>
-  <label>Multiplikator: <input id="ctrlMultiplier" type="number" value="3" style="width:80px"></label>
-  <br>
-  <button id="btnStart">Rennen starten</button>
-  <button id="btnForce">Teilnehmer gewinn (Index)</button>
-  <input id="ctrlIndex" type="number" style="width:80px" value="0">
-</div>
-
-<div class="box">
-  <h3>Player Weight</h3>
-  <label>Spieler-Index: <input id="ctrlWeightIndex" type="number" style="width:80px" value="0"></label>
-  <label>Gewicht: <input id="ctrlWeight" type="number" style="width:80px" value="1" min="1"></label>
-  <button id="btnSetWeight" disabled>Setze Gewicht</button>
-</div>
-
-<div class="box">
-  <h3>Roh-Nachricht senden</h3>
-  <textarea id="rawMsg" rows="4" style="width:100%">{"action":"startRace"}</textarea>
-  <button id="btnSendRaw">Senden</button>
-</div>
-
-<script>
-let ws = null;
-const REQUIRED_CODE = '2409';
-const DEFAULT_CODE = '2409';
-
-function setControlsEnabled(enabled) {
-  document.getElementById('btnAddPlayer').disabled = !enabled;
-  document.getElementById('btnStart').disabled = !enabled;
-  document.getElementById('btnForce').disabled = !enabled;
-  document.getElementById('btnSendRaw').disabled = !enabled;
-  document.getElementById('btnSetWeight').disabled = !enabled;
-}
-
-// initially disabled until correct code entered
-setControlsEnabled(false);
-function sendMessage(msg){
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(msg));
-  } else {
-    alert('Nicht verbunden mit Server');
-  }
-}
-
-
-document.getElementById('btnAddPlayer').addEventListener('click', ()=>{
-  const code = document.getElementById('ctrlCode').value.trim();
-  if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
-  const name = document.getElementById('ctrlPlayerName').value.trim();
-  const bet = parseInt(document.getElementById('ctrlPlayerBet').value,10)||1;
-  if(!name) return alert('Name eingeben');
-  sendMessage({action:'addPlayer', payload:{name, bet}});
-});
-document.getElementById('btnStart').addEventListener('click', ()=>{
-  const code = document.getElementById('ctrlCode').value.trim(); if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
-  sendMessage({action:'startRace'});
-});
-document.getElementById('btnForce').addEventListener('click', ()=>{
-  const code = document.getElementById('ctrlCode').value.trim(); if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
-  const idx = parseInt(document.getElementById('ctrlIndex').value,10)||0; sendMessage({action:'forceFinish', payload:{index:idx}});
-});
-document.getElementById('btnSendRaw').addEventListener('click', ()=>{
-  try{ const msg = JSON.parse(document.getElementById('rawMsg').value); sendMessage(msg); } catch(e){ alert('Ungültiges JSON'); }
-});
-document.getElementById('ctrlMultiplier').addEventListener('change', ()=>{
-  const code = document.getElementById('ctrlCode').value.trim(); if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
-  const mul = parseInt(document.getElementById('ctrlMultiplier').value,10)||3; sendMessage({action:'setMultiplier', payload:{multiplier:mul}});
-});
-document.getElementById('ctrlGameType').addEventListener('change', ()=>{
-  const code = document.getElementById('ctrlCode').value.trim(); if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
-  sendMessage({action:'setGameType', payload:{gameType:document.getElementById('ctrlGameType').value}});
-});
-document.getElementById('btnSetWeight').addEventListener('click', ()=>{
-  const code = document.getElementById('ctrlCode').value.trim(); if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
-  const idx = parseInt(document.getElementById('ctrlWeightIndex').value,10);
-  const w = parseInt(document.getElementById('ctrlWeight').value,10)||1;
-  if (isNaN(idx)) return alert('Index eingeben');
-  sendMessage({action:'setPlayerWeight', payload:{index:idx, weight:w}});
-});
-
-document.getElementById('ctrlCode').addEventListener('input', (e)=>{
-  const ok = e.target.value.trim() === REQUIRED_CODE;
-  setControlsEnabled(ok);
-});
-
-// Connect to WS server and authenticate
-function connectWS(url, code) {
-  try {
-    ws = new WebSocket(url);
-    const status = document.getElementById('connStatus');
-    ws.onopen = ()=>{ status.textContent = '(verbunden, auth...)'; ws.send(JSON.stringify({ type:'auth', code: code || DEFAULT_CODE })); };
-    ws.onmessage = (ev)=>{
-      try {
-        const msg = JSON.parse(ev.data);
-        if (msg && msg.type === 'auth') {
-          if (msg.status === 'ok') { status.textContent = '(auth erfolgreich)'; setControlsEnabled(true); }
-          else { status.textContent = '(auth fehlgeschlagen)'; setControlsEnabled(false); }
-        }
-      } catch(e){ console.warn('Invalid message', e); }
-    };
-    ws.onclose = ()=>{ document.getElementById('connStatus').textContent = '(nicht verbunden)'; setControlsEnabled(false); };
-    ws.onerror = (e)=>{ console.warn(e); alert('WebSocket Fehler'); };
-  } catch(e){ alert('Ungültige URL'); }
-}
-
-document.getElementById('btnConnect').addEventListener('click', ()=>{
-  const url = document.getElementById('serverUrl').value.trim();
-  const code = document.getElementById('ctrlCode').value.trim();
-  if (!url) return alert('Bitte Server-URL eingeben');
-  connectWS(url, code || DEFAULT_CODE);
-});
-
-// Auto-discover public WS via /public-ws on known hosts
-async function discoverAndAutoConnect() {
-  const candidates = [location.origin.replace(/^http/, 'https'), 'https://'+location.hostname, 'http://localhost:8080', 'http://127.0.0.1:8080'];
-  for (const base of candidates) {
-    try {
-      const url = new URL('/public-ws', base).toString();
-      const resp = await fetch(url, { mode: 'cors' });
-      if (!resp.ok) continue;
-      const data = await resp.json();
-      if (data && data.ws) {
-        document.getElementById('serverUrl').value = data.ws;
-        document.getElementById('ctrlCode').value = DEFAULT_CODE;
-        connectWS(data.ws, DEFAULT_CODE);
-        return;
-      }
-    } catch (e) { /* ignore */ }
-  }
-}
-
-// Try auto discover on load
-window.addEventListener('load', ()=>{ discoverAndAutoConnect().catch(()=>{}); });
-</script>
 </body>
 </html>
