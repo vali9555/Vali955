@@ -347,7 +347,8 @@ function renderPlayers() {
         div.className = 'player-item';
 
         // Build picks checkboxes for current game items
-        let picksHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">';
+            let picksHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">';
+            let picksHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">';
         for (let i = 0; i < current.items.length; i++) {
             const it = current.items[i];
             const checked = player.picks.includes(i) ? 'checked' : '';
@@ -357,7 +358,7 @@ function renderPlayers() {
 
         div.innerHTML = `
             <div style="display:flex;gap:8px;align-items:center;width:100%;">
-                <strong style="flex:1">${player.name}</strong>
+                    <input type="text" data-player-name="${index}" value="${player.name}" style="flex:1;padding:6px;border-radius:4px;background:#444;border:1px solid #555;color:white;"> 
                 <input type="number" min="1" value="${player.bet}" data-player-bet="${index}" style="width:90px;padding:6px;border-radius:4px;background:#444;border:1px solid #555;color:white;"> 
                 <button onclick="removePlayer(${index})" style="padding: 4px 8px; font-size: 12px;">Entfernen</button>
             </div>
@@ -375,6 +376,15 @@ function renderPlayers() {
             updatePayoutInfo();
         });
     });
+
+        // player name inline edit listeners
+        document.querySelectorAll('input[data-player-name]').forEach(inp => {
+            inp.addEventListener('input', (e) => {
+                const idx = parseInt(e.target.getAttribute('data-player-name'), 10);
+                players[idx].name = e.target.value;
+                updatePayoutInfo();
+            });
+        });
 
     document.querySelectorAll('input[type=checkbox][data-player]').forEach(cb => {
         cb.addEventListener('change', (e) => {
