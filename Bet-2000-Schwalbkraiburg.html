@@ -214,10 +214,7 @@ select {
     <h1>🏁 Bet 2000</h1>
     <p>Wähle ein oder mehrere Teilnehmer aus und setze auf das Rennen.</p>
     <div style="margin-top:8px;">
-        <label style="font-size:14px;color:#ccc">WebSocket-Server (optional):</label>
-        <input id="wsServerInput" placeholder="ws://192.168.0.10:8080" style="width:260px;padding:6px;border-radius:4px;background:#333;border:1px solid #555;color:white;margin-left:8px">
-        <button id="wsConnectBtn" style="margin-left:8px;padding:6px 10px;">Verbinden</button>
-        <span id="wsStatus" style="margin-left:12px;color:#888;font-size:13px">(nicht verbunden)</span>
+        <p style="font-size:13px;color:#888;margin:0">Steuerung erfolgt lokal (BroadcastChannel). Keine WebSocket-URL erforderlich.</p>
     </div>
 
 
@@ -336,8 +333,6 @@ try {
     };
 } catch (e) { console.warn('BroadcastChannel not available', e); }
 
-// WebSocket client helper (manual connect) — falls verbunden, verwendet Spiel WS, sonst BroadcastChannel
-let wsClient = null;
 const REQUIRED_ADMIN_CODE = '2409';
 let adminEnabled = false;
 function setAdminState(ok) {
@@ -384,50 +379,7 @@ function connectWS(url) {
     } catch (e) { console.warn('WebSocket connect failed', e); }
 }
 
-document.addEventListener('DOMContentLoaded', ()=>{
-    const btn = document.getElementById('wsConnectBtn');
-    const input = document.getElementById('wsServerInput');
-    if (btn && input) {
-        btn.addEventListener('click', ()=>{
-            const url = input.value.trim();
-            if (!url) return alert('Bitte WebSocket-URL eingeben (z. B. ws://192.168.0.10:8080)');
-            connectWS(url);
-        });
-    }
-    // Versuche automatisch bekannte Hosts (location.hostname, localhost, 127.0.0.1)
-    function autoConnectWS() {
-        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-        const candidates = [location.hostname, 'localhost', '127.0.0.1'];
-        let i = 0;
-        function tryNext() {
-            if (i >= candidates.length) return;
-            const host = candidates[i++];
-            const url = `${proto}://${host}:8080`;
-            // try connect and if not open in 1200ms, try next
-            let tried = false;
-            try {
-                const tmp = new WebSocket(url);
-                const statusEl = document.getElementById('wsStatus');
-                const inputEl = document.getElementById('wsServerInput');
-                const cleanup = ()=>{ try{ tmp.close(); }catch(e){} };
-                tmp.onopen = ()=>{
-                    cleanup();
-                    connectWS(url);
-                    if (inputEl) inputEl.value = url;
-                    if (statusEl) statusEl.textContent = '(verbunden)';
-                };
-                tmp.onerror = ()=>{ cleanup(); setTimeout(tryNext, 200); };
-                tmp.onclose = ()=>{ /* ignore */ };
-                // fallback if no event within timeout
-                setTimeout(()=>{ if (tmp.readyState !== WebSocket.OPEN) { try{ tmp.close(); }catch(e){} tryNext(); } }, 1200);
-            } catch (e) {
-                setTimeout(tryNext, 200);
-            }
-        }
-        tryNext();
-    }
-    autoConnectWS();
-});
+// (WebSocket-Funktionen entfernt; Steuerung arbeitet lokal über BroadcastChannel)
 
 const gameTypes = {
     F1: {

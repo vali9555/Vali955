@@ -16,10 +16,8 @@
 </div>
 
 <div class="box">
-  <h3>Server / Allgemein</h3>
-  <label>WebSocket-Server: <input id="serverUrl" placeholder="ws://192.168.0.10:8080" style="width:260px"></label>
-  <button id="btnConnect">Verbinden</button>
-  <p style="color:#888;font-size:13px">Wenn verbunden, wird WS verwendet; sonst BroadcastChannel.</p>
+  <h3>Allgemein</h3>
+  <p style="color:#888;font-size:13px">Verwendet BroadcastChannel für lokale Steuerung.</p>
   <label style="display:block;margin-top:8px">Kontroll-Code eingeben (erforderlich): <input id="ctrlCode" placeholder="----" style="width:100px"></label>
   <hr>
   <label>Spielart: <select id="ctrlGameType"><option>F1</option><option>Menschen</option><option>Autos</option><option>Pferde</option></select></label>
@@ -45,7 +43,6 @@
 </div>
 
 <script>
-let ws = null;
 const bc = new BroadcastChannel('bet2000');
 const REQUIRED_CODE = '2409';
 
@@ -59,24 +56,8 @@ function setControlsEnabled(enabled) {
 
 // initially disabled until correct code entered
 setControlsEnabled(false);
-function sendMessage(msg){
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(msg));
-  } else {
-    bc.postMessage(msg);
-  }
-}
+function sendMessage(msg){ bc.postMessage(msg); }
 
-  document.getElementById('btnConnect').addEventListener('click', ()=>{
-  const url = document.getElementById('serverUrl').value.trim();
-  if (!url) return alert('Server-URL eingeben');
-  try {
-    ws = new WebSocket(url);
-    ws.onopen = ()=>{ alert('WebSocket verbunden'); };
-    ws.onclose = ()=>{ alert('WebSocket geschlossen'); ws = null; };
-    ws.onerror = (e)=>{ console.error(e); alert('WebSocket Fehler'); };
-  } catch(e){ alert('Ungültige URL'); }
-});
 
 document.getElementById('btnAddPlayer').addEventListener('click', ()=>{
   const code = document.getElementById('ctrlCode').value.trim();
