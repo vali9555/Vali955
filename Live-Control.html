@@ -16,9 +16,14 @@
 </div>
 
 <div class="box">
-  <h3>Allgemein</h3>
-  <p style="color:#888;font-size:13px">Verwendet BroadcastChannel für lokale Steuerung.</p>
-  <label style="display:block;margin-top:8px">Kontroll-Code eingeben (erforderlich): <input id="ctrlCode" placeholder="----" style="width:100px"></label>
+  <h3>Server / Allgemein</h3>
+  <p style="color:#888;font-size:13px">Verbinde mit dem WebSocket-Server (erforderlich für Fernsteuerung).</p>
+  <label>WebSocket-Server: <input id="serverUrl" placeholder="wss://example.com:8080" style="width:260px"></label>
+  <button id="btnConnect">Verbinden</button>
+  <div style="margin-top:8px">
+    <label style="display:block">Kontroll-Code: <input id="ctrlCode" placeholder="----" style="width:120px"></label>
+    <span id="connStatus" style="color:#888;font-size:13px">(nicht verbunden)</span>
+  </div>
   <hr>
   <label>Spielart: <select id="ctrlGameType"><option>F1</option><option>Menschen</option><option>Autos</option><option>Pferde</option></select></label>
   <br>
@@ -43,7 +48,7 @@
 </div>
 
 <script>
-const bc = new BroadcastChannel('bet2000');
+let ws = null;
 const REQUIRED_CODE = '2409';
 
 function setControlsEnabled(enabled) {
@@ -56,7 +61,13 @@ function setControlsEnabled(enabled) {
 
 // initially disabled until correct code entered
 setControlsEnabled(false);
-function sendMessage(msg){ bc.postMessage(msg); }
+function sendMessage(msg){
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(msg));
+  } else {
+    alert('Nicht verbunden mit Server');
+  }
+}
 
 
 document.getElementById('btnAddPlayer').addEventListener('click', ()=>{
@@ -97,6 +108,30 @@ document.getElementById('btnSetWeight').addEventListener('click', ()=>{
 document.getElementById('ctrlCode').addEventListener('input', (e)=>{
   const ok = e.target.value.trim() === REQUIRED_CODE;
   setControlsEnabled(ok);
+});
+
+// Connect to WS server and authenticate
+document.getElementById('btnConnect').addEventListener('click', ()=>{
+  const url = document.getElementById('serverUrl').value.trim();
+  const code = document.getElementById('ctrlCode').value.trim();
+  if (!url) return alert('Bitte Server-URL eingeben');
+  if (!code) return alert('Bitte Kontroll-Code eingeben');
+  try {
+    ws = new WebSocket(url);
+    const status = document.getElementById('connStatus');
+    ws.onopen = ()=>{ status.textContent = '(verbunden, auth...)'; ws.send(JSON.stringify({ type:'auth', code })); };
+    ws.onmessage = (ev)=>{
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg && msg.type === 'auth') {
+          if (msg.status === 'ok') { status.textContent = '(auth erfolgreich)'; setControlsEnabled(true); }
+          else { status.textContent = '(auth fehlgeschlagen)'; setControlsEnabled(false); }
+        }
+      } catch(e){ console.warn('Invalid message', e); }
+    };
+    ws.onclose = ()=>{ document.getElementById('connStatus').textContent = '(nicht verbunden)'; setControlsEnabled(false); };
+    ws.onerror = (e)=>{ console.warn(e); alert('WebSocket Fehler'); };
+  } catch(e){ alert('Ungültige URL'); }
 });
 </script>
 </body>

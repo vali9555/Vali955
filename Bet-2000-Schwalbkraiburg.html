@@ -15,6 +15,38 @@ body {
     padding: 20px;
 }
 
+// Attach connect button and try common hosts
+document.addEventListener('DOMContentLoaded', ()=>{
+    const btn = document.getElementById('wsConnectBtn');
+    const input = document.getElementById('wsServerInput');
+    if (btn && input) {
+        btn.addEventListener('click', ()=>{
+            const url = input.value.trim();
+            if (!url) return alert('Bitte WebSocket-URL eingeben (z. B. wss://example.com:8080)');
+            connectWS(url);
+        });
+    }
+    // try auto-connect to common hosts
+    (function autoConnectWS(){
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        const candidates = [location.hostname, 'localhost', '127.0.0.1'];
+        let i=0;
+        function tryNext(){
+            if (i>=candidates.length) return;
+            const host = candidates[i++];
+            const url = `${proto}://${host}:8080`;
+            try{
+                const tmp = new WebSocket(url);
+                const cleanup = ()=>{ try{ tmp.close(); }catch(e){} };
+                tmp.onopen = ()=>{ cleanup(); connectWS(url); const inputEl = document.getElementById('wsServerInput'); if (inputEl) inputEl.value = url; };
+                tmp.onerror = ()=>{ cleanup(); setTimeout(tryNext,200); };
+                setTimeout(()=>{ if (tmp.readyState !== WebSocket.OPEN) { try{ tmp.close(); }catch(e){} tryNext(); } },1000);
+            }catch(e){ setTimeout(tryNext,200); }
+        }
+        tryNext();
+    })();
+});
+
 .container {
     max-width: 1000px;
     margin: 0 auto;
@@ -214,7 +246,10 @@ select {
     <h1>🏁 Bet 2000</h1>
     <p>Wähle ein oder mehrere Teilnehmer aus und setze auf das Rennen.</p>
     <div style="margin-top:8px;">
-        <p style="font-size:13px;color:#888;margin:0">Steuerung erfolgt lokal (BroadcastChannel). Keine WebSocket-URL erforderlich.</p>
+        <label style="font-size:14px;color:#ccc">WebSocket-Server (erforderlich für Fernsteuerung):</label>
+        <input id="wsServerInput" placeholder="wss://example.com:8080" style="width:260px;padding:6px;border-radius:4px;background:#333;border:1px solid #555;color:white;margin-left:8px">
+        <button id="wsConnectBtn" style="margin-left:8px;padding:6px 10px;">Verbinden</button>
+        <span id="wsStatus" style="margin-left:12px;color:#888;font-size:13px">(nicht verbunden)</span>
     </div>
 
 
@@ -277,61 +312,53 @@ let players = [];
 let currentWinner = null;
 let raceInterval = null;
 const PRIZE_MULTIPLIER = 3;
-// BroadcastChannel für Live-Steuerung
-let bc = null;
-try {
-    bc = new BroadcastChannel('bet2000');
-    bc.onmessage = (ev) => {
-        const msg = ev.data || {};
-        const action = msg.action;
-        const payload = msg.payload;
-        if (!action) return;
-        switch(action) {
-            case 'addPlayer':
-                if (payload && payload.name) { players.push({ name: payload.name, bet: payload.bet || 1, picks: payload.picks || [], weight: payload.weight || 1 }); renderPlayers(); updatePayoutInfo(); }
-                break;
-            case 'setMultiplier':
-                if (payload && typeof payload.multiplier === 'number') { window.PRIZE_MULTIPLIER = payload.multiplier; }
-                break;
-            case 'setGameType':
-                if (payload && payload.gameType) { gameType.value = payload.gameType; renderGame(); renderPlayers(); }
-                break;
-            case 'startRace':
-                startRace();
-                break;
-            case 'forceFinish':
-                // payload.index = participant index
-                if (typeof payload?.index === 'number') {
-                    // emulate finish for participant
-                    if (raceInterval) { clearInterval(raceInterval); raceInterval = null; }
-                    const i = payload.index;
-                    const winners = players.map((p, idx) => ({...p, index: idx})).filter(p => p.picks.includes(i));
-                    const payout = Math.round(players.reduce((s,p)=>s+(parseInt(p.bet,10)||0),0) * (window.PRIZE_MULTIPLIER||PRIZE_MULTIPLIER) / Math.max(1, (new Set(players.flatMap(p=>p.picks))).size));
-                    currentWinner = { participantIndex: i, winners: winners.map(w=>({name:w.name, index:w.index})), payout };
-                    if (winners.length>0) { result.textContent = `🎉 Teilnehmer ${i+1} gewinnt!`; showWinnerInfo(winners,payout,i); } else { result.textContent = `❌ Teilnehmer ${i+1} gewinnt. Keine Spieler hatten diesen Tipp.`; showWinnerInfo([],0,i); }
-                }
-                break;
-            case 'editWinnerName':
-                if (payload && payload.name) { document.getElementById('editWinnerName').value = payload.name; saveWinnerName(); }
-                break;
-            case 'setPlayerPicks':
-                // payload: {index, picks: [int,...]}
-                if (payload && typeof payload.index === 'number' && Array.isArray(payload.picks)) {
-                    const p = players[payload.index]; if (p) { p.picks = payload.picks.slice(); renderPlayers(); updatePayoutInfo(); }
-                }
-                break;
-            case 'setPlayerWeight':
-                // payload: {index, weight}
-                if (payload && typeof payload.index === 'number' && typeof payload.weight === 'number') { const pp = players[payload.index]; if (pp) { pp.weight = payload.weight; renderPlayers(); updatePayoutInfo(); } }
-                break;
-            case 'setPlayerBet':
-                if (payload && typeof payload.index === 'number' && typeof payload.bet === 'number') { const p = players[payload.index]; if (p) { p.bet = payload.bet; renderPlayers(); updatePayoutInfo(); } }
-                break;
-            default:
-                console.log('Unknown action', action, payload);
-        }
-    };
-} catch (e) { console.warn('BroadcastChannel not available', e); }
+// WebSocket-based incoming message handler (remote controllers must authenticate with server)
+let wsClient = null;
+function handleIncoming(msg) {
+    const action = msg.action;
+    const payload = msg.payload;
+    if (!action) return;
+    switch(action) {
+        case 'addPlayer':
+            if (payload && payload.name) { players.push({ name: payload.name, bet: payload.bet || 1, picks: payload.picks || [], weight: payload.weight || 1 }); renderPlayers(); updatePayoutInfo(); }
+            break;
+        case 'setMultiplier':
+            if (payload && typeof payload.multiplier === 'number') { window.PRIZE_MULTIPLIER = payload.multiplier; }
+            break;
+        case 'setGameType':
+            if (payload && payload.gameType) { gameType.value = payload.gameType; renderGame(); renderPlayers(); }
+            break;
+        case 'startRace':
+            startRace();
+            break;
+        case 'forceFinish':
+            if (typeof payload?.index === 'number') {
+                if (raceInterval) { clearInterval(raceInterval); raceInterval = null; }
+                const i = payload.index;
+                const winners = players.map((p, idx) => ({...p, index: idx})).filter(p => p.picks.includes(i));
+                const payout = Math.round(players.reduce((s,p)=>s+(parseInt(p.bet,10)||0),0) * (window.PRIZE_MULTIPLIER||PRIZE_MULTIPLIER) / Math.max(1, (new Set(players.flatMap(p=>p.picks))).size));
+                currentWinner = { participantIndex: i, winners: winners.map(w=>({name:w.name, index:w.index})), payout };
+                if (winners.length>0) { result.textContent = `🎉 Teilnehmer ${i+1} gewinnt!`; showWinnerInfo(winners,payout,i); } else { result.textContent = `❌ Teilnehmer ${i+1} gewinnt. Keine Spieler hatten diesen Tipp.`; showWinnerInfo([],0,i); }
+            }
+            break;
+        case 'editWinnerName':
+            if (payload && payload.name) { document.getElementById('editWinnerName').value = payload.name; saveWinnerName(); }
+            break;
+        case 'setPlayerPicks':
+            if (payload && typeof payload.index === 'number' && Array.isArray(payload.picks)) {
+                const p = players[payload.index]; if (p) { p.picks = payload.picks.slice(); renderPlayers(); updatePayoutInfo(); }
+            }
+            break;
+        case 'setPlayerWeight':
+            if (payload && typeof payload.index === 'number' && typeof payload.weight === 'number') { const pp = players[payload.index]; if (pp) { pp.weight = payload.weight; renderPlayers(); updatePayoutInfo(); } }
+            break;
+        case 'setPlayerBet':
+            if (payload && typeof payload.index === 'number' && typeof payload.bet === 'number') { const p = players[payload.index]; if (p) { p.bet = payload.bet; renderPlayers(); updatePayoutInfo(); } }
+            break;
+        default:
+            console.log('Unknown action', action, payload);
+    }
+}
 
 const REQUIRED_ADMIN_CODE = '2409';
 let adminEnabled = false;
@@ -371,7 +398,7 @@ function connectWS(url) {
         wsClient.onmessage = (ev) => {
             try {
                 const msg = JSON.parse(ev.data);
-                if (msg && msg.action) { bc && bc.onmessage && bc.onmessage({ data: msg }); }
+                if (msg) handleIncoming(msg);
             } catch (e) { console.warn('Invalid WS message', e); }
         };
         wsClient.onclose = () => { console.log('WS closed'); if (statusEl) statusEl.textContent = '(nicht verbunden)'; };
