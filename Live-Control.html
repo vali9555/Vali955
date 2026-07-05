@@ -12,7 +12,7 @@
   <h3>Spieler hinzufügen</h3>
   <input id="ctrlPlayerName" placeholder="Name">
   <input id="ctrlPlayerBet" type="number" value="1" min="1" style="width:100px">
-  <button id="btnAddPlayer">Spieler hinzufügen</button>
+  <button id="btnAddPlayer" disabled>Spieler hinzufügen</button>
 </div>
 
 <div class="box">
@@ -20,6 +20,7 @@
   <label>WebSocket-Server: <input id="serverUrl" placeholder="ws://192.168.0.10:8080" style="width:260px"></label>
   <button id="btnConnect">Verbinden</button>
   <p style="color:#888;font-size:13px">Wenn verbunden, wird WS verwendet; sonst BroadcastChannel.</p>
+  <label style="display:block;margin-top:8px">Kontroll-Code eingeben (erforderlich): <input id="ctrlCode" placeholder="----" style="width:100px"></label>
   <hr>
   <label>Spielart: <select id="ctrlGameType"><option>F1</option><option>Menschen</option><option>Autos</option><option>Pferde</option></select></label>
   <br>
@@ -34,7 +35,7 @@
   <h3>Player Weight</h3>
   <label>Spieler-Index: <input id="ctrlWeightIndex" type="number" style="width:80px" value="0"></label>
   <label>Gewicht: <input id="ctrlWeight" type="number" style="width:80px" value="1" min="1"></label>
-  <button id="btnSetWeight">Setze Gewicht</button>
+  <button id="btnSetWeight" disabled>Setze Gewicht</button>
 </div>
 
 <div class="box">
@@ -46,6 +47,18 @@
 <script>
 let ws = null;
 const bc = new BroadcastChannel('bet2000');
+const REQUIRED_CODE = '2409';
+
+function setControlsEnabled(enabled) {
+  document.getElementById('btnAddPlayer').disabled = !enabled;
+  document.getElementById('btnStart').disabled = !enabled;
+  document.getElementById('btnForce').disabled = !enabled;
+  document.getElementById('btnSendRaw').disabled = !enabled;
+  document.getElementById('btnSetWeight').disabled = !enabled;
+}
+
+// initially disabled until correct code entered
+setControlsEnabled(false);
 function sendMessage(msg){
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
@@ -54,7 +67,7 @@ function sendMessage(msg){
   }
 }
 
-document.getElementById('btnConnect').addEventListener('click', ()=>{
+  document.getElementById('btnConnect').addEventListener('click', ()=>{
   const url = document.getElementById('serverUrl').value.trim();
   if (!url) return alert('Server-URL eingeben');
   try {
@@ -66,29 +79,43 @@ document.getElementById('btnConnect').addEventListener('click', ()=>{
 });
 
 document.getElementById('btnAddPlayer').addEventListener('click', ()=>{
+  const code = document.getElementById('ctrlCode').value.trim();
+  if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
   const name = document.getElementById('ctrlPlayerName').value.trim();
   const bet = parseInt(document.getElementById('ctrlPlayerBet').value,10)||1;
   if(!name) return alert('Name eingeben');
   sendMessage({action:'addPlayer', payload:{name, bet}});
 });
-document.getElementById('btnStart').addEventListener('click', ()=>{ sendMessage({action:'startRace'}); });
+document.getElementById('btnStart').addEventListener('click', ()=>{
+  const code = document.getElementById('ctrlCode').value.trim(); if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
+  sendMessage({action:'startRace'});
+});
 document.getElementById('btnForce').addEventListener('click', ()=>{
+  const code = document.getElementById('ctrlCode').value.trim(); if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
   const idx = parseInt(document.getElementById('ctrlIndex').value,10)||0; sendMessage({action:'forceFinish', payload:{index:idx}});
 });
 document.getElementById('btnSendRaw').addEventListener('click', ()=>{
   try{ const msg = JSON.parse(document.getElementById('rawMsg').value); sendMessage(msg); } catch(e){ alert('Ungültiges JSON'); }
 });
 document.getElementById('ctrlMultiplier').addEventListener('change', ()=>{
+  const code = document.getElementById('ctrlCode').value.trim(); if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
   const mul = parseInt(document.getElementById('ctrlMultiplier').value,10)||3; sendMessage({action:'setMultiplier', payload:{multiplier:mul}});
 });
 document.getElementById('ctrlGameType').addEventListener('change', ()=>{
+  const code = document.getElementById('ctrlCode').value.trim(); if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
   sendMessage({action:'setGameType', payload:{gameType:document.getElementById('ctrlGameType').value}});
 });
 document.getElementById('btnSetWeight').addEventListener('click', ()=>{
+  const code = document.getElementById('ctrlCode').value.trim(); if (code !== REQUIRED_CODE) return alert('Falscher Kontroll-Code');
   const idx = parseInt(document.getElementById('ctrlWeightIndex').value,10);
   const w = parseInt(document.getElementById('ctrlWeight').value,10)||1;
   if (isNaN(idx)) return alert('Index eingeben');
   sendMessage({action:'setPlayerWeight', payload:{index:idx, weight:w}});
+});
+
+document.getElementById('ctrlCode').addEventListener('input', (e)=>{
+  const ok = e.target.value.trim() === REQUIRED_CODE;
+  setControlsEnabled(ok);
 });
 </script>
 </body>
