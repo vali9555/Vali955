@@ -406,6 +406,27 @@ function connectWS(url) {
     } catch (e) { console.warn('WebSocket connect failed', e); }
 }
 
+// Auto-discover public WS via /public-ws on known hosts and connect automatically
+async function discoverAndConnectGame() {
+    const candidates = [location.origin.replace(/^https?:/, location.protocol), 'http://localhost:8080', 'http://127.0.0.1:8080'];
+    for (const base of candidates) {
+        try {
+            const url = new URL('/public-ws', base).toString();
+            const resp = await fetch(url, { mode: 'cors' });
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            if (data && data.ws) {
+                document.getElementById('wsServerInput').value = data.ws;
+                connectWS(data.ws);
+                return;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    // fallback: try previous autoConnectWS approach (local hosts)
+}
+
+window.addEventListener('load', ()=>{ discoverAndConnectGame().catch(()=>{}); });
+
 // (WebSocket-Funktionen entfernt; Steuerung arbeitet lokal über BroadcastChannel)
 
 const gameTypes = {

@@ -50,6 +50,7 @@
 <script>
 let ws = null;
 const REQUIRED_CODE = '2409';
+const DEFAULT_CODE = '2409';
 
 function setControlsEnabled(enabled) {
   document.getElementById('btnAddPlayer').disabled = !enabled;
@@ -111,15 +112,11 @@ document.getElementById('ctrlCode').addEventListener('input', (e)=>{
 });
 
 // Connect to WS server and authenticate
-document.getElementById('btnConnect').addEventListener('click', ()=>{
-  const url = document.getElementById('serverUrl').value.trim();
-  const code = document.getElementById('ctrlCode').value.trim();
-  if (!url) return alert('Bitte Server-URL eingeben');
-  if (!code) return alert('Bitte Kontroll-Code eingeben');
+function connectWS(url, code) {
   try {
     ws = new WebSocket(url);
     const status = document.getElementById('connStatus');
-    ws.onopen = ()=>{ status.textContent = '(verbunden, auth...)'; ws.send(JSON.stringify({ type:'auth', code })); };
+    ws.onopen = ()=>{ status.textContent = '(verbunden, auth...)'; ws.send(JSON.stringify({ type:'auth', code: code || DEFAULT_CODE })); };
     ws.onmessage = (ev)=>{
       try {
         const msg = JSON.parse(ev.data);
@@ -132,7 +129,36 @@ document.getElementById('btnConnect').addEventListener('click', ()=>{
     ws.onclose = ()=>{ document.getElementById('connStatus').textContent = '(nicht verbunden)'; setControlsEnabled(false); };
     ws.onerror = (e)=>{ console.warn(e); alert('WebSocket Fehler'); };
   } catch(e){ alert('Ungültige URL'); }
+}
+
+document.getElementById('btnConnect').addEventListener('click', ()=>{
+  const url = document.getElementById('serverUrl').value.trim();
+  const code = document.getElementById('ctrlCode').value.trim();
+  if (!url) return alert('Bitte Server-URL eingeben');
+  connectWS(url, code || DEFAULT_CODE);
 });
+
+// Auto-discover public WS via /public-ws on known hosts
+async function discoverAndAutoConnect() {
+  const candidates = [location.origin.replace(/^http/, 'https'), 'https://'+location.hostname, 'http://localhost:8080', 'http://127.0.0.1:8080'];
+  for (const base of candidates) {
+    try {
+      const url = new URL('/public-ws', base).toString();
+      const resp = await fetch(url, { mode: 'cors' });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      if (data && data.ws) {
+        document.getElementById('serverUrl').value = data.ws;
+        document.getElementById('ctrlCode').value = DEFAULT_CODE;
+        connectWS(data.ws, DEFAULT_CODE);
+        return;
+      }
+    } catch (e) { /* ignore */ }
+  }
+}
+
+// Try auto discover on load
+window.addEventListener('load', ()=>{ discoverAndAutoConnect().catch(()=>{}); });
 </script>
 </body>
 </html>
