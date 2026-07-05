@@ -4,7 +4,8 @@
   "description": "Simple WebSocket server for Bet-2000 live control",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "start-remote": "./start-remote.sh"
   },
   "dependencies": {
     "ws": "^8.13.0"

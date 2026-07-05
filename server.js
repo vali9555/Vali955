@@ -1,4 +1,6 @@
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const WebSocket = require('ws');
 const port = process.env.PORT || 8080;
 const CONTROL_CODE = process.env.CONTROL_CODE || '2409';
@@ -6,8 +8,20 @@ const CONTROL_CODE = process.env.CONTROL_CODE || '2409';
 // Simple HTTP server to provide a discovery endpoint and allow ngrok status queries
 const server = http.createServer((req, res) => {
   if (req.url && req.url.startsWith('/public-ws')) {
-    // Try to detect ngrok tunnel via its local API
-    const ngrokApi = 'http://127.0.0.1:4040/api/tunnels';
+    // First, check for a locally written public URL file (written by start script)
+    const fallbackPath = process.env.PUBLIC_WS_PATH || '/tmp/public_ws.json';
+    try {
+      const file = fs.readFileSync(fallbackPath, 'utf8');
+      const j = JSON.parse(file || '{}');
+      if (j && j.ws) {
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ ws: j.ws }));
+        return;
+      }
+    } catch (e) {
+      // ignore and continue to ngrok probe
+    }
+
     const httpGet = require('http').get;
     httpGet(ngrokApi, (ngRes) => {
       let body = '';
@@ -34,13 +48,60 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify(fallback));
       });
     }).on('error', () => {
+      // If ngrok API unavailable, try reading a locally written public url file
+      const fallbackPath = process.env.PUBLIC_WS_PATH || '/tmp/public_ws.json';
+      try {
+        const file = fs.readFileSync(fallbackPath, 'utf8');
+        const j = JSON.parse(file || '{}');
+        if (j && j.ws) {
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ ws: j.ws }));
+          return;
+        }
+      } catch (e) {
+        // ignore and fallthrough
+      }
       res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
       res.end(JSON.stringify({ ws: null }));
     });
     return;
   }
-  res.writeHead(404);
-  res.end();
+
+  // Serve static files from repository root as fallback (simple, safe mapping)
+  const repoRoot = path.resolve(__dirname);
+  let reqPath = req.url.split('?')[0];
+  if (reqPath === '/' || reqPath === '') {
+    reqPath = '/Bet-2000-Schwalbkraiburg.html';
+  }
+  // sanitize and resolve
+  const safePath = path.normalize(reqPath).replace(/^\/+/, '');
+  const filePath = path.join(repoRoot, safePath);
+  if (!filePath.startsWith(repoRoot)) {
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
+  fs.stat(filePath, (err, stat) => {
+    if (err || !stat.isFile()) {
+      res.writeHead(404);
+      res.end('Not found');
+      return;
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    const mime = {
+      '.html': 'text/html; charset=utf-8',
+      '.js': 'application/javascript; charset=utf-8',
+      '.css': 'text/css; charset=utf-8',
+      '.json': 'application/json; charset=utf-8',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.svg': 'image/svg+xml'
+    }[ext] || 'application/octet-stream';
+    res.writeHead(200, { 'Content-Type': mime, 'Access-Control-Allow-Origin': '*' });
+    const stream = fs.createReadStream(filePath);
+    stream.pipe(res);
+  });
 });
 
 const wss = new WebSocket.Server({ server });

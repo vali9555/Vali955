@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto-Rennen</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #222;
+    color: white;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+}
+
+.track {
+    width: 90%;
+    max-width: 900px;
+    min-width: 320px;
+    height: 55px;
+    background: #555;
+    margin: 12px auto;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.car {
+    position: absolute;
+    left: 0;
+    top: 10px;
+    font-size: 32px;
+    transition: left 0.03s linear;
+}
+
+.finish {
+    position: absolute;
+    right: 5px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: red;
+}
+
+button {
+    padding: 10px 24px;
+    font-size: 18px;
+    margin-top: 15px;
+    cursor: pointer;
+}
+
+select, input {
+    font-size: 18px;
+    padding: 6px;
+    margin: 0 6px;
+}
+
+#result {
+    font-size: 24px;
+    margin-top: 20px;
+    min-height: 32px;
+}
+</style>
+</head>
+<body>
+
+<h1>🏁 Auto-Rennen</h1>
+<p>Guthaben: <span id="money">1000</span> €</p>
+
+<p>
+Auto:
+<select id="betCar">
+    <option value="0">Auto 1</option>
+    <option value="1">Auto 2</option>
+    <option value="2">Auto 3</option>
+    <option value="3">Auto 4</option>
+    <option value="4">Auto 5</option>
+    <option value="5">Auto 6</option>
+</select>
+Einsatz:
+<input id="betAmount" type="number" value="100" min="1">
+</p>
+
+<button id="startButton">Rennen starten</button>
+
+<div id="tracks"></div>
+<h2 id="result"></h2>
+
+<script>
+const cars = ["🚗", "🚙", "🏎️", "🚕", "🚓", "🚘"];
+let money = 1000;
+const tracks = document.getElementById('tracks');
+const result = document.getElementById('result');
+const moneyDisplay = document.getElementById('money');
+const betAmount = document.getElementById('betAmount');
+const betCar = document.getElementById('betCar');
+const startButton = document.getElementById('startButton');
+
+for (let i = 0; i < cars.length; i++) {
+    tracks.innerHTML += `
+    <div class="track">
+        <div class="car" id="car${i}">${cars[i]}</div>
+        <div class="finish"></div>
+    </div>
+    `;
+}
+
+function startRace() {
+    const bet = parseInt(betAmount.value, 10);
+    const chosen = parseInt(betCar.value, 10);
+
+    if (!bet || bet <= 0 || bet > money) {
+        alert('Ungültiger Einsatz');
+        return;
+    }
+
+    result.textContent = '';
+    startButton.disabled = true;
+
+    const carElements = cars.map((_, i) => document.getElementById('car' + i));
+    const trackElements = Array.from(document.querySelectorAll('.track'));
+    const trackWidth = trackElements[0].clientWidth;
+    const carWidth = carElements[0].clientWidth;
+    const finishX = trackWidth - carWidth - 10;
+
+    let finished = false;
+    const positions = cars.map(() => 0);
+
+    carElements.forEach(car => car.style.left = '0px');
+
+    const interval = setInterval(() => {
+        for (let i = 0; i < cars.length; i++) {
+            positions[i] += Math.random() * 8 + 1;
+            carElements[i].style.left = positions[i] + 'px';
+
+            if (positions[i] >= finishX && !finished) {
+                finished = true;
+                clearInterval(interval);
+                startButton.disabled = false;
+
+                if (i === chosen) {
+                    money += bet;
+                    result.textContent = `🎉 Auto ${i + 1} gewinnt! Du erhältst ${bet} €.`;
+                } else {
+                    money -= bet;
+                    result.textContent = `❌ Auto ${i + 1} gewinnt. Du verlierst ${bet} €.`;
+                }
+
+                moneyDisplay.textContent = money;
+                break;
+            }
+        }
+    }, 30);
+}
+
+startButton.addEventListener('click', startRace);
+</script>
+</body>
+</html>

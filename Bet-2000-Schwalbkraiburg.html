@@ -311,7 +311,7 @@ const winnerInfo = document.getElementById('winnerInfo');
 let players = [];
 let currentWinner = null;
 let raceInterval = null;
-const PRIZE_MULTIPLIER = 3;
+window.PRIZE_MULTIPLIER = 3;
 // WebSocket-based incoming message handler (remote controllers must authenticate with server)
 let wsClient = null;
 function handleIncoming(msg) {
@@ -322,8 +322,8 @@ function handleIncoming(msg) {
         case 'addPlayer':
             if (payload && payload.name) { players.push({ name: payload.name, bet: payload.bet || 1, picks: payload.picks || [], weight: payload.weight || 1 }); renderPlayers(); updatePayoutInfo(); }
             break;
-        case 'setMultiplier':
-            if (payload && typeof payload.multiplier === 'number') { window.PRIZE_MULTIPLIER = payload.multiplier; }
+            case 'setMultiplier':
+                if (payload && typeof payload.multiplier === 'number') { window.PRIZE_MULTIPLIER = payload.multiplier; }
             break;
         case 'setGameType':
             if (payload && payload.gameType) { gameType.value = payload.gameType; renderGame(); renderPlayers(); }
@@ -336,7 +336,7 @@ function handleIncoming(msg) {
                 if (raceInterval) { clearInterval(raceInterval); raceInterval = null; }
                 const i = payload.index;
                 const winners = players.map((p, idx) => ({...p, index: idx})).filter(p => p.picks.includes(i));
-                const payout = Math.round(players.reduce((s,p)=>s+(parseInt(p.bet,10)||0),0) * (window.PRIZE_MULTIPLIER||PRIZE_MULTIPLIER) / Math.max(1, (new Set(players.flatMap(p=>p.picks))).size));
+                const payout = Math.round(players.reduce((s,p)=>s+(parseInt(p.bet,10)||0),0) * (window.PRIZE_MULTIPLIER||3) / Math.max(1, (new Set(players.flatMap(p=>p.picks))).size));
                 currentWinner = { participantIndex: i, winners: winners.map(w=>({name:w.name, index:w.index})), payout };
                 if (winners.length>0) { result.textContent = `🎉 Teilnehmer ${i+1} gewinnt!`; showWinnerInfo(winners,payout,i); } else { result.textContent = `❌ Teilnehmer ${i+1} gewinnt. Keine Spieler hatten diesen Tipp.`; showWinnerInfo([],0,i); }
             }
@@ -585,7 +585,7 @@ function updatePayoutInfo() {
         payoutInfo.textContent = 'Wähle Spieler, Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.';
         return;
     }
-    const payout = Math.round(totalBet * PRIZE_MULTIPLIER / count);
+    const payout = Math.round(totalBet * (window.PRIZE_MULTIPLIER||3) / count);
 
     // Show summary + per-player potential
     let summary = `Gesamteinsätze: ${totalBet} Schwalbtahler · ${count} getippte Teilnehmer · Gewinn pro richtiger Tipp: ${payout} Schwalbtahler.`;
@@ -617,8 +617,8 @@ function startRace() {
     const union = new Set();
     let totalBet = 0;
     players.forEach(p => { totalBet += (parseInt(p.bet,10) || 0); p.picks.forEach(x => union.add(x)); });
-    const uniqueCount = union.size || chosenIndices.length;
-    const payout = uniqueCount > 0 ? Math.round(totalBet * PRIZE_MULTIPLIER / uniqueCount) : 0;
+    const uniqueCount = union.size || 0;
+    const payout = uniqueCount > 0 ? Math.round(totalBet * (window.PRIZE_MULTIPLIER||3) / uniqueCount) : 0;
     payoutInfo.textContent = `Gesamteinsätze: ${totalBet} · ${uniqueCount} getippte Teilnehmer · Gewinn pro richtiger Tipp: ${payout} Schwalbtahler.`;
 
     result.textContent = '';
