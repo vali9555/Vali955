@@ -272,6 +272,7 @@ const winnerInfo = document.getElementById('winnerInfo');
 
 let players = [];
 let currentWinner = null;
+const PRIZE_MULTIPLIER = 3;
 
 const gameTypes = {
     F1: {
@@ -428,7 +429,7 @@ function updatePayoutInfo() {
         payoutInfo.textContent = 'Wähle Spieler, Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.';
         return;
     }
-    const payout = Math.round(totalBet * 3 / count);
+    const payout = Math.round(totalBet * PRIZE_MULTIPLIER / count);
 
     // Show summary + per-player potential
     let summary = `Gesamteinsätze: ${totalBet} Schwalbtahler · ${count} getippte Teilnehmer · Gewinn pro richtiger Tipp: ${payout} Schwalbtahler.`;
@@ -461,7 +462,7 @@ function startRace() {
     let totalBet = 0;
     players.forEach(p => { totalBet += (parseInt(p.bet,10) || 0); p.picks.forEach(x => union.add(x)); });
     const uniqueCount = union.size || chosenIndices.length;
-    const payout = uniqueCount > 0 ? Math.round(totalBet * 3 / uniqueCount) : 0;
+    const payout = uniqueCount > 0 ? Math.round(totalBet * PRIZE_MULTIPLIER / uniqueCount) : 0;
     payoutInfo.textContent = `Gesamteinsätze: ${totalBet} · ${uniqueCount} getippte Teilnehmer · Gewinn pro richtiger Tipp: ${payout} Schwalbtahler.`;
 
     result.textContent = '';
