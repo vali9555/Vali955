@@ -365,6 +365,39 @@ document.addEventListener('DOMContentLoaded', ()=>{
             connectWS(url);
         });
     }
+    // Versuche automatisch bekannte Hosts (location.hostname, localhost, 127.0.0.1)
+    function autoConnectWS() {
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        const candidates = [location.hostname, 'localhost', '127.0.0.1'];
+        let i = 0;
+        function tryNext() {
+            if (i >= candidates.length) return;
+            const host = candidates[i++];
+            const url = `${proto}://${host}:8080`;
+            // try connect and if not open in 1200ms, try next
+            let tried = false;
+            try {
+                const tmp = new WebSocket(url);
+                const statusEl = document.getElementById('wsStatus');
+                const inputEl = document.getElementById('wsServerInput');
+                const cleanup = ()=>{ try{ tmp.close(); }catch(e){} };
+                tmp.onopen = ()=>{
+                    cleanup();
+                    connectWS(url);
+                    if (inputEl) inputEl.value = url;
+                    if (statusEl) statusEl.textContent = '(verbunden)';
+                };
+                tmp.onerror = ()=>{ cleanup(); setTimeout(tryNext, 200); };
+                tmp.onclose = ()=>{ /* ignore */ };
+                // fallback if no event within timeout
+                setTimeout(()=>{ if (tmp.readyState !== WebSocket.OPEN) { try{ tmp.close(); }catch(e){} tryNext(); } }, 1200);
+            } catch (e) {
+                setTimeout(tryNext, 200);
+            }
+        }
+        tryNext();
+    }
+    autoConnectWS();
 });
 
 const gameTypes = {
