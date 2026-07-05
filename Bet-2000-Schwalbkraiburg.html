@@ -235,13 +235,7 @@ select {
             </select>
         </p>
 
-        <p>Teilnehmer:</p>
-        <div id="carChooser"></div>
-
-        <p>
-            Einsatz pro Spieler (Schwalbtahler):
-            <input id="betAmount" type="number" value="1" min="1">
-        </p>
+            <!-- Teilnehmer werden unten auf den Bahnen angezeigt; Tipps wählt jeder Spieler oben -->
 
         <p id="payoutInfo">Wähle Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.</p>
 
@@ -270,10 +264,9 @@ const gameType = document.getElementById('gameType');
 const tracks = document.getElementById('tracks');
 const result = document.getElementById('result');
 const payoutInfo = document.getElementById('payoutInfo');
-const carChooser = document.getElementById('carChooser');
-const betAmount = document.getElementById('betAmount');
+// Hinweis: Globaler `carChooser` und `betAmount` entfernt — pro-Spieler Tipps/Einsätze verwendet
 const startButton = document.getElementById('startButton');
-const selectedCars = new Set();
+// global selection removed — players choose their own picks
 const playersContainer = document.getElementById('playersContainer');
 const winnerInfo = document.getElementById('winnerInfo');
 
@@ -404,8 +397,7 @@ function getCurrentGame() {
 function renderGame() {
     const current = getCurrentGame();
     tracks.innerHTML = '';
-    carChooser.innerHTML = '';
-    selectedCars.clear();
+    // clear any prior state
     result.textContent = '';
     winnerInfo.classList.remove('show');
     updatePayoutInfo();
@@ -421,29 +413,10 @@ function renderGame() {
         `;
     }
 
-    for (let i = 0; i < current.items.length; i++) {
-        const item = current.items[i];
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'car-choice';
-        button.textContent = `${item.name} ${item.icon}`;
-        button.dataset.index = i;
-        button.addEventListener('click', () => toggleCarSelection(i, button));
-        carChooser.appendChild(button);
-    }
+    // participants shown on tracks; per-player picks are in the players area
 }
 
-function toggleCarSelection(index, button) {
-    if (selectedCars.has(index)) {
-        selectedCars.delete(index);
-        button.classList.remove('selected');
-    } else {
-        selectedCars.add(index);
-        button.classList.add('selected');
-    }
-    // Keep existing global selection for convenience
-    updatePayoutInfo();
-}
+// removed global toggleCarSelection — players pick individually
 
 function updatePayoutInfo() {
     // Compute union of all picks
@@ -469,21 +442,17 @@ function updatePayoutInfo() {
 
 function startRace() {
     const current = getCurrentGame();
-    const chosenIndices = Array.from(selectedCars);
-    const bet = parseInt(betAmount.value, 10);
+    // per-player picks and bets are used; global selections removed
 
     if (players.length === 0) {
         alert('Bitte füge mindestens einen Spieler hinzu.');
         return;
     }
 
-    if (chosenIndices.length === 0) {
-        alert('Bitte wähle mindestens einen Teilnehmer aus.');
-        return;
-    }
-
-    if (!bet || bet <= 0) {
-        alert('Bitte gib einen gültigen Einsatz ein.');
+    // Validate: at least one player has at least one pick
+    const anyPick = players.some(p => p.picks && p.picks.length > 0);
+    if (!anyPick) {
+        alert('Bitte lasse jeden Spieler mindestens einen Tipp setzen.');
         return;
     }
 
