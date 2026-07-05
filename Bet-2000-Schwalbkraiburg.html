@@ -541,10 +541,16 @@ function saveWinnerName() {
     }
     // Update first winner display name if exists
     if (currentWinner && currentWinner.winners && currentWinner.winners.length > 0) {
+        // Update in currentWinner and persist to players array
+        const w = currentWinner.winners[0];
         currentWinner.winners[0].name = newName;
+        if (typeof w.index === 'number' && players[w.index]) {
+            players[w.index].name = newName;
+        }
         document.getElementById('winnerDisplayName').textContent = `${newName} gewinnt!`;
+        renderPlayers();
     } else {
-        // Fallback label
+        // Fallback label (no player to persist to)
         document.getElementById('winnerDisplayName').textContent = `${newName} gewinnt!`;
     }
 }
