@@ -158,6 +158,17 @@ select {
     min-height: 32px;
 }
 
+#payoutInfo {
+    font-size: 22px !important;
+    background: #2a2a2a;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 15px;
+    border: 2px solid #0a7;
+    color: #0f9;
+    font-weight: bold;
+}
+
 .winner-info {
     background: #2a2a2a;
     padding: 20px;
@@ -202,6 +213,7 @@ select {
 <div class="container">
     <h1>🏁 Bet 2000</h1>
     <p>Wähle ein oder mehrere Teilnehmer aus und setze auf das Rennen.</p>
+    <p><a href="Auto-Rennen.html" style="color: #0a7; text-decoration: none; font-weight: bold;">Zum Auto-Rennen</a></p>
 
     <div class="section players-setup">
         <h2>Spieler hinzufügen</h2>
@@ -319,27 +331,69 @@ function addPlayer() {
         alert('Bitte einen Namen eingeben');
         return;
     }
-    
-    players.push(name);
+
+    // Spieler als Objekt: Name, Einsatz, gewählte Tipps
+    players.push({ name, bet: parseInt(betAmount.value, 10) || 1, picks: [] });
     nameInput.value = '';
     renderPlayers();
+    updatePayoutInfo();
 }
 
 function removePlayer(index) {
     players.splice(index, 1);
     renderPlayers();
+    updatePayoutInfo();
 }
 
 function renderPlayers() {
     playersContainer.innerHTML = '';
+    const current = getCurrentGame();
     players.forEach((player, index) => {
         const div = document.createElement('div');
         div.className = 'player-item';
+
+        // Build picks checkboxes for current game items
+        let picksHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">';
+        for (let i = 0; i < current.items.length; i++) {
+            const it = current.items[i];
+            const checked = player.picks.includes(i) ? 'checked' : '';
+            picksHtml += `<label style="font-size:14px;"><input type=\"checkbox\" data-player=\"${index}\" data-index=\"${i}\" ${checked}> ${it.name}</label>`;
+        }
+        picksHtml += '</div>';
+
         div.innerHTML = `
-            <span>${player}</span>
-            <button onclick="removePlayer(${index})" style="padding: 4px 8px; font-size: 12px;">Entfernen</button>
+            <div style="display:flex;gap:8px;align-items:center;width:100%;">
+                <strong style="flex:1">${player.name}</strong>
+                <input type="number" min="1" value="${player.bet}" data-player-bet="${index}" style="width:90px;padding:6px;border-radius:4px;background:#444;border:1px solid #555;color:white;"> 
+                <button onclick="removePlayer(${index})" style="padding: 4px 8px; font-size: 12px;">Entfernen</button>
+            </div>
+            ${picksHtml}
         `;
+
         playersContainer.appendChild(div);
+    });
+
+    // Attach event listeners for newly created inputs
+    document.querySelectorAll('input[data-player-bet]').forEach(inp => {
+        inp.addEventListener('change', (e) => {
+            const idx = parseInt(e.target.getAttribute('data-player-bet'), 10);
+            players[idx].bet = parseInt(e.target.value, 10) || 1;
+            updatePayoutInfo();
+        });
+    });
+
+    document.querySelectorAll('input[type=checkbox][data-player]').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            const p = parseInt(e.target.getAttribute('data-player'), 10);
+            const choice = parseInt(e.target.getAttribute('data-index'), 10);
+            if (e.target.checked) {
+                if (!players[p].picks.includes(choice)) players[p].picks.push(choice);
+            } else {
+                const pos = players[p].picks.indexOf(choice);
+                if (pos >= 0) players[p].picks.splice(pos, 1);
+            }
+            updatePayoutInfo();
+        });
     });
 }
 
@@ -387,19 +441,30 @@ function toggleCarSelection(index, button) {
         selectedCars.add(index);
         button.classList.add('selected');
     }
+    // Keep existing global selection for convenience
     updatePayoutInfo();
 }
 
 function updatePayoutInfo() {
-    const count = selectedCars.size;
-    const bet = parseInt(betAmount.value, 10);
-    if (count === 0 || !bet || bet <= 0 || players.length === 0) {
+    // Compute union of all picks
+    const union = new Set();
+    let totalBet = 0;
+    players.forEach(p => { totalBet += (parseInt(p.bet, 10) || 0); p.picks.forEach(x => union.add(x)); });
+    const count = union.size;
+    if (count === 0 || totalBet === 0 || players.length === 0) {
         payoutInfo.textContent = 'Wähle Spieler, Einsatz und Teilnehmer, um den möglichen Gewinn in Schwalbtahlern zu sehen.';
         return;
     }
-    const totalBet = bet * players.length;
     const payout = Math.round(totalBet * 3 / count);
-    payoutInfo.textContent = `Bei ${count} Tipp(s), ${players.length} Spieler und ${bet} Schwalbtahler Einsatz pro Spieler beträgt der mögliche Gewinn ${payout} Schwalbtahler.`;
+
+    // Show summary + per-player potential
+    let summary = `Gesamteinsätze: ${totalBet} Schwalbtahler · ${count} getippte Teilnehmer · Gewinn pro richtiger Tipp: ${payout} Schwalbtahler.`;
+    summary += '\n';
+    players.forEach(p => {
+        const picksText = p.picks.map(i => getCurrentGame().items[i].name).join(', ') || '—';
+        summary += `${p.name}: Einsatz ${p.bet} · Tipps: ${picksText} \n`;
+    });
+    payoutInfo.textContent = summary;
 }
 
 function startRace() {
@@ -422,9 +487,13 @@ function startRace() {
         return;
     }
 
-    const totalBet = bet * players.length;
-    const payout = Math.round(totalBet * 3 / chosenIndices.length);
-    payoutInfo.textContent = `Bei ${chosenIndices.length} Tipp(s), ${players.length} Spieler und ${bet} Schwalbtahler Einsatz pro Spieler beträgt der mögliche Gewinn ${payout} Schwalbtahler.`;
+    // Recompute totalBet from players and union of picks
+    const union = new Set();
+    let totalBet = 0;
+    players.forEach(p => { totalBet += (parseInt(p.bet,10) || 0); p.picks.forEach(x => union.add(x)); });
+    const uniqueCount = union.size || chosenIndices.length;
+    const payout = uniqueCount > 0 ? Math.round(totalBet * 3 / uniqueCount) : 0;
+    payoutInfo.textContent = `Gesamteinsätze: ${totalBet} · ${uniqueCount} getippte Teilnehmer · Gewinn pro richtiger Tipp: ${payout} Schwalbtahler.`;
 
     result.textContent = '';
     startButton.disabled = true;
@@ -451,23 +520,24 @@ function startRace() {
                 clearInterval(interval);
                 startButton.disabled = false;
 
-                const randomPlayerIndex = Math.floor(Math.random() * players.length);
-                const winnerPlayerName = players[randomPlayerIndex];
-                const isWinningTip = chosenIndices.includes(i);
+                // Determine which players predicted this participant
+                const winners = players.map((p, idx) => ({...p, index: idx})).filter(p => p.picks.includes(i));
 
                 currentWinner = {
                     participantIndex: i,
-                    playerName: winnerPlayerName,
-                    payout: isWinningTip ? payout : 0,
-                    won: isWinningTip
+                    winners: winners.map(w => ({ name: w.name, index: w.index })),
+                    payout: payout
                 };
 
-                if (isWinningTip) {
+                if (winners.length > 0) {
                     result.textContent = `🎉 Teilnehmer ${i + 1} gewinnt!`;
-                    showWinnerInfo(winnerPlayerName, payout);
+                    showWinnerInfo(winners, payout, i);
                 } else {
-                    result.textContent = `❌ Teilnehmer ${i + 1} gewinnt. Deine Tipps lagen daneben.`;
-                    showWinnerInfo(winnerPlayerName, 0);
+                    // Randomly pick a player to show as owner of the result (same UX as before)
+                    const randomPlayerIndex = Math.floor(Math.random() * players.length);
+                    const winnerPlayerName = players[randomPlayerIndex].name;
+                    result.textContent = `❌ Teilnehmer ${i + 1} gewinnt. Keine Spieler hatten diesen Tipp.`;
+                    showWinnerInfo([], 0, i, winnerPlayerName);
                 }
                 break;
             }
@@ -475,10 +545,22 @@ function startRace() {
     }, 30);
 }
 
-function showWinnerInfo(playerName, payout) {
-    document.getElementById('winnerDisplayName').textContent = `${playerName} gewinnt!`;
-    document.getElementById('winnings').textContent = `Gewinn: ${payout} Schwalbtahler`;
-    document.getElementById('editWinnerName').value = playerName;
+function showWinnerInfo(winners, payout, participantIndex, fallbackName) {
+    const display = document.getElementById('winnerDisplayName');
+    const winningsEl = document.getElementById('winnings');
+    const editInput = document.getElementById('editWinnerName');
+
+    if (winners && winners.length > 0) {
+        // List all winning players and their payout
+        const names = winners.map(w => w.name).join(', ');
+        display.textContent = `${getCurrentGame().items[participantIndex].name} gewinnt! Gewinner: ${names}`;
+        winningsEl.textContent = `Gewinn pro richtiger Tipp: ${payout} Schwalbtahler`;
+        editInput.value = winners[0].name;
+    } else {
+        display.textContent = `${getCurrentGame().items[participantIndex].name} gewinnt!`;
+        winningsEl.textContent = `Gewinn: ${payout} Schwalbtahler`;
+        editInput.value = fallbackName || '';
+    }
     winnerInfo.classList.add('show');
 }
 
@@ -488,15 +570,22 @@ function saveWinnerName() {
         alert('Bitte einen Namen eingeben');
         return;
     }
-    currentWinner.playerName = newName;
-    document.getElementById('winnerDisplayName').textContent = `${newName} gewinnt!`;
+    // Update first winner display name if exists
+    if (currentWinner && currentWinner.winners && currentWinner.winners.length > 0) {
+        currentWinner.winners[0].name = newName;
+        document.getElementById('winnerDisplayName').textContent = `${newName} gewinnt!`;
+    } else {
+        // Fallback label
+        document.getElementById('winnerDisplayName').textContent = `${newName} gewinnt!`;
+    }
 }
 
-gameType.addEventListener('change', renderGame);
+gameType.addEventListener('change', () => { renderGame(); renderPlayers(); });
 startButton.addEventListener('click', startRace);
 betAmount.addEventListener('change', updatePayoutInfo);
 
 renderGame();
+renderPlayers();
 </script>
 </body>
 </html>
