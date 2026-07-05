@@ -338,6 +338,35 @@ try {
 
 // WebSocket client helper (manual connect) — falls verbunden, verwendet Spiel WS, sonst BroadcastChannel
 let wsClient = null;
+const REQUIRED_ADMIN_CODE = '2409';
+let adminEnabled = false;
+function setAdminState(ok) {
+    adminEnabled = !!ok;
+    document.getElementById('adminBadge').style.display = ok ? 'inline' : 'none';
+    document.getElementById('adminHint').textContent = ok ? 'Code akzeptiert' : '(versteckt)';
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+    const adminToggle = document.getElementById('adminToggle');
+    const adminRow = document.getElementById('adminCodeRow');
+    const adminSet = document.getElementById('adminCodeSet');
+    const adminInput = document.getElementById('adminCodeInput');
+    if (adminToggle && adminRow) {
+        adminToggle.addEventListener('click', ()=>{ adminRow.style.display = adminRow.style.display === 'none' ? 'block' : 'none'; });
+    }
+    if (adminSet && adminInput) {
+        adminSet.addEventListener('click', ()=>{
+            const val = adminInput.value.trim();
+            if (val === REQUIRED_ADMIN_CODE) {
+                setAdminState(true);
+                alert('Admin-Code akzeptiert');
+            } else {
+                setAdminState(false);
+                alert('Falscher Code');
+            }
+        });
+    }
+});
 function connectWS(url) {
     try {
         if (wsClient) { try { wsClient.close(); } catch(e){} wsClient = null; }
