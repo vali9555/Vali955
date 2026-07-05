@@ -249,11 +249,7 @@ select {
         <h2>🎉 Gewinner</h2>
         <p id="winnerDisplayName" style="font-size: 20px; margin: 10px 0;"></p>
         <p id="winnings" style="font-size: 18px; color: #0f9;"></p>
-        <div class="winner-name-edit">
-            <label>Namen ändern:</label>
-            <input type="text" id="editWinnerName" placeholder="Gewinnername">
-            <button onclick="saveWinnerName()">Speichern</button>
-        </div>
+        <!-- Gewinnername-Bearbeitung entfernt -->
     </div>
 </div>
 
@@ -528,43 +524,19 @@ function startRace() {
 function showWinnerInfo(winners, payout, participantIndex, fallbackName) {
     const display = document.getElementById('winnerDisplayName');
     const winningsEl = document.getElementById('winnings');
-    const editInput = document.getElementById('editWinnerName');
 
     if (winners && winners.length > 0) {
-        // List all winning players and their payout
         const names = winners.map(w => w.name).join(', ');
         display.textContent = `${getCurrentGame().items[participantIndex].name} gewinnt! Gewinner: ${names}`;
         winningsEl.textContent = `Gewinn pro richtiger Tipp: ${payout} Schwalbtahler`;
-        editInput.value = winners[0].name;
     } else {
         display.textContent = `${getCurrentGame().items[participantIndex].name} gewinnt!`;
         winningsEl.textContent = `Gewinn: ${payout} Schwalbtahler`;
-        editInput.value = fallbackName || '';
     }
     winnerInfo.classList.add('show');
 }
 
-function saveWinnerName() {
-    const newName = document.getElementById('editWinnerName').value.trim();
-    if (newName === '') {
-        alert('Bitte einen Namen eingeben');
-        return;
-    }
-    // Update first winner display name if exists
-    if (currentWinner && currentWinner.winners && currentWinner.winners.length > 0) {
-        // Update in currentWinner and persist to players array
-        const w = currentWinner.winners[0];
-        currentWinner.winners[0].name = newName;
-        if (typeof w.index === 'number' && players[w.index]) {
-            players[w.index].name = newName;
-        }
-        document.getElementById('winnerDisplayName').textContent = `${newName} gewinnt!`;
-        renderPlayers();
-    } else {
-        // Fallback label (no player to persist to)
-        document.getElementById('winnerDisplayName').textContent = `${newName} gewinnt!`;
-    }
-}
+// saveWinnerName removed — winner name editing UI removed
 
 gameType.addEventListener('change', () => { renderGame(); renderPlayers(); });
 startButton.addEventListener('click', startRace);
