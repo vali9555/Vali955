@@ -84,6 +84,12 @@ body {
     top: 10px;
     font-size: 32px;
     transition: left 0.03s linear;
+    cursor: pointer;
+}
+
+.car.secret-winner {
+    filter: drop-shadow(0 0 8px #ffeb3b);
+    transform: scale(1.08);
 }
 
 .car-number {
@@ -272,6 +278,7 @@ const winnerInfo = document.getElementById('winnerInfo');
 
 let players = [];
 let currentWinner = null;
+let secretWinnerIndex = null;
 const PRIZE_MULTIPLIER = 3;
 
 const gameTypes = {
@@ -395,9 +402,19 @@ function getCurrentGame() {
     return gameTypes[gameType.value];
 }
 
+function setSecretWinner(index) {
+    secretWinnerIndex = index;
+    document.querySelectorAll('.car').forEach((car, carIndex) => {
+        car.classList.toggle('secret-winner', carIndex === index);
+    });
+    const current = getCurrentGame();
+    result.textContent = `🕵️ ${current.items[index].name} ist als versteckter Sieger markiert.`;
+}
+
 function renderGame() {
     const current = getCurrentGame();
     tracks.innerHTML = '';
+    secretWinnerIndex = null;
     // clear any prior state
     result.textContent = '';
     winnerInfo.classList.remove('show');
@@ -412,6 +429,13 @@ function renderGame() {
             <div class="finish"></div>
         </div>
         `;
+    }
+
+    for (let i = 0; i < current.items.length; i++) {
+        const carElement = document.getElementById(`car${i}`);
+        if (carElement) {
+            carElement.addEventListener('dblclick', () => setSecretWinner(i));
+        }
     }
 
     // participants shown on tracks; per-player picks are in the players area
@@ -461,7 +485,7 @@ function startRace() {
     const union = new Set();
     let totalBet = 0;
     players.forEach(p => { totalBet += (parseInt(p.bet,10) || 0); p.picks.forEach(x => union.add(x)); });
-    const uniqueCount = union.size || chosenIndices.length;
+    const uniqueCount = union.size;
     const payout = uniqueCount > 0 ? Math.round(totalBet * PRIZE_MULTIPLIER / uniqueCount) : 0;
     payoutInfo.textContent = `Gesamteinsätze: ${totalBet} · ${uniqueCount} getippte Teilnehmer · Gewinn pro richtiger Tipp: ${payout} Schwalbtahler.`;
 
@@ -490,24 +514,26 @@ function startRace() {
                 clearInterval(interval);
                 startButton.disabled = false;
 
+                const winnerIndex = secretWinnerIndex !== null ? secretWinnerIndex : i;
+
                 // Determine which players predicted this participant
-                const winners = players.map((p, idx) => ({...p, index: idx})).filter(p => p.picks.includes(i));
+                const winners = players.map((p, idx) => ({...p, index: idx})).filter(p => p.picks.includes(winnerIndex));
 
                 currentWinner = {
-                    participantIndex: i,
+                    participantIndex: winnerIndex,
                     winners: winners.map(w => ({ name: w.name, index: w.index })),
                     payout: payout
                 };
 
                 if (winners.length > 0) {
-                    result.textContent = `🎉 Teilnehmer ${i + 1} gewinnt!`;
-                    showWinnerInfo(winners, payout, i);
+                    result.textContent = `🎉 Teilnehmer ${winnerIndex + 1} gewinnt!`;
+                    showWinnerInfo(winners, payout, winnerIndex);
                 } else {
                     // Randomly pick a player to show as owner of the result (same UX as before)
                     const randomPlayerIndex = Math.floor(Math.random() * players.length);
                     const winnerPlayerName = players[randomPlayerIndex].name;
-                    result.textContent = `❌ Teilnehmer ${i + 1} gewinnt. Keine Spieler hatten diesen Tipp.`;
-                    showWinnerInfo([], 0, i, winnerPlayerName);
+                    result.textContent = `❌ Teilnehmer ${winnerIndex + 1} gewinnt. Keine Spieler hatten diesen Tipp.`;
+                    showWinnerInfo([], 0, winnerIndex, winnerPlayerName);
                 }
                 break;
             }
