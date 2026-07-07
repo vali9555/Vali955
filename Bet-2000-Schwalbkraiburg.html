@@ -504,12 +504,18 @@ function startRace() {
     carElements.forEach(car => car.style.left = '0px');
 
     const interval = setInterval(() => {
+        const winnerIndex = secretWinnerIndex !== null ? secretWinnerIndex : null;
         for (let i = 0; i < current.items.length; i++) {
             positions[i] += Math.random() * 8 + 1;
             carElements[i].style.left = positions[i] + 'px';
 
-            const shouldStop = secretWinnerIndex !== null
-                ? (i === secretWinnerIndex && positions[i] >= finishX && !finished)
+            if (winnerIndex !== null && i === winnerIndex) {
+                positions[i] = finishX + 5;
+                carElements[i].style.left = positions[i] + 'px';
+            }
+
+            const shouldStop = winnerIndex !== null
+                ? (i === winnerIndex && !finished)
                 : (positions[i] >= finishX && !finished);
 
             if (shouldStop) {
@@ -517,26 +523,23 @@ function startRace() {
                 clearInterval(interval);
                 startButton.disabled = false;
 
-                const winnerIndex = secretWinnerIndex !== null ? secretWinnerIndex : i;
-
-                // Determine which players predicted this participant
-                const winners = players.map((p, idx) => ({...p, index: idx})).filter(p => p.picks.includes(winnerIndex));
+                const resolvedWinnerIndex = winnerIndex !== null ? winnerIndex : i;
+                const winners = players.map((p, idx) => ({...p, index: idx})).filter(p => p.picks.includes(resolvedWinnerIndex));
 
                 currentWinner = {
-                    participantIndex: winnerIndex,
+                    participantIndex: resolvedWinnerIndex,
                     winners: winners.map(w => ({ name: w.name, index: w.index })),
                     payout: payout
                 };
 
                 if (winners.length > 0) {
-                    result.textContent = `🎉 Teilnehmer ${winnerIndex + 1} gewinnt!`;
-                    showWinnerInfo(winners, payout, winnerIndex);
+                    result.textContent = `🎉 Teilnehmer ${resolvedWinnerIndex + 1} gewinnt!`;
+                    showWinnerInfo(winners, payout, resolvedWinnerIndex);
                 } else {
-                    // Randomly pick a player to show as owner of the result (same UX as before)
                     const randomPlayerIndex = Math.floor(Math.random() * players.length);
                     const winnerPlayerName = players[randomPlayerIndex].name;
-                    result.textContent = `❌ Teilnehmer ${winnerIndex + 1} gewinnt. Keine Spieler hatten diesen Tipp.`;
-                    showWinnerInfo([], 0, winnerIndex, winnerPlayerName);
+                    result.textContent = `❌ Teilnehmer ${resolvedWinnerIndex + 1} gewinnt. Keine Spieler hatten diesen Tipp.`;
+                    showWinnerInfo([], 0, resolvedWinnerIndex, winnerPlayerName);
                 }
                 break;
             }
