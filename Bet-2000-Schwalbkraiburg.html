@@ -88,8 +88,7 @@ body {
 }
 
 .car.secret-winner {
-    filter: drop-shadow(0 0 8px #ffeb3b);
-    transform: scale(1.08);
+    opacity: 0.95;
 }
 
 .car-number {
@@ -408,7 +407,7 @@ function setSecretWinner(index) {
         car.classList.toggle('secret-winner', carIndex === index);
     });
     const current = getCurrentGame();
-    result.textContent = `🕵️ ${current.items[index].name} ist als versteckter Sieger markiert.`;
+    result.textContent = `${current.items[index].name} ist als versteckter Sieger markiert.`;
 }
 
 function renderGame() {
