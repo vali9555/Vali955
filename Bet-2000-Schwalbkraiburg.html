@@ -542,6 +542,11 @@ function startRace() {
                     result.textContent = `❌ Teilnehmer ${resolvedWinnerIndex + 1} gewinnt. Keine Spieler hatten diesen Tipp.`;
                     showWinnerInfo([], 0, resolvedWinnerIndex, winnerPlayerName);
                 }
+
+                setTimeout(() => {
+                    carElements.forEach(car => car.style.left = '0px');
+                    positions.fill(0);
+                }, 2000);
                 break;
             }
         }
