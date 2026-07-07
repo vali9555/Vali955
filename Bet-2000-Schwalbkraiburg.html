@@ -503,13 +503,18 @@ function startRace() {
 
     const interval = setInterval(() => {
         const winnerIndex = secretWinnerIndex !== null ? secretWinnerIndex : null;
-        for (let i = 0; i < current.items.length; i++) {
-            positions[i] += Math.random() * 8 + 1;
-            carElements[i].style.left = positions[i] + 'px';
+        const leaderPosition = Math.max(...positions);
 
-            const baseSpeed = Math.random() * 8 + 1;
-            const secretBoost = winnerIndex !== null && i === winnerIndex ? 0.4 : 0;
-            positions[i] += baseSpeed + secretBoost;
+        for (let i = 0; i < current.items.length; i++) {
+            let speed = Math.random() * 5 + 2.2;
+
+            if (winnerIndex !== null && i === winnerIndex) {
+                const gapToLeader = Math.max(0, leaderPosition - positions[i]);
+                const catchUpBoost = Math.min(2.8, gapToLeader * 0.012 + 0.25);
+                speed += catchUpBoost;
+            }
+
+            positions[i] += speed;
             carElements[i].style.left = positions[i] + 'px';
 
             const shouldStop = positions[i] >= finishX && !finished;
