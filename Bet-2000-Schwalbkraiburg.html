@@ -431,7 +431,7 @@ function renderGame() {
     for (let i = 0; i < current.items.length; i++) {
         const carElement = document.getElementById(`car${i}`);
         if (carElement) {
-            carElement.addEventListener('dblclick', () => setSecretWinner(i));
+            carElement.addEventListener('click', () => setSecretWinner(i));
         }
     }
 
