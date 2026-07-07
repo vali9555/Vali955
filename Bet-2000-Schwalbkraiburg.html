@@ -507,17 +507,12 @@ function startRace() {
             positions[i] += Math.random() * 8 + 1;
             carElements[i].style.left = positions[i] + 'px';
 
-            if (winnerIndex !== null && i === winnerIndex) {
-                positions[i] += Math.random() * 4.5 + 1.2;
-                carElements[i].style.left = positions[i] + 'px';
-            } else {
-                positions[i] += Math.random() * 8 + 1;
-                carElements[i].style.left = positions[i] + 'px';
-            }
+            const baseSpeed = Math.random() * 8 + 1;
+            const secretBoost = winnerIndex !== null && i === winnerIndex ? 0.4 : 0;
+            positions[i] += baseSpeed + secretBoost;
+            carElements[i].style.left = positions[i] + 'px';
 
-            const shouldStop = winnerIndex !== null
-                ? (positions[i] >= finishX && !finished)
-                : (positions[i] >= finishX && !finished);
+            const shouldStop = positions[i] >= finishX && !finished;
 
             if (shouldStop) {
                 finished = true;
