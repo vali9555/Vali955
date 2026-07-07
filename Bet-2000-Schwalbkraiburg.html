@@ -406,8 +406,6 @@ function setSecretWinner(index) {
     document.querySelectorAll('.car').forEach((car, carIndex) => {
         car.classList.toggle('secret-winner', carIndex === index);
     });
-    const current = getCurrentGame();
-    result.textContent = `${current.items[index].name} ist als versteckter Sieger markiert.`;
 }
 
 function renderGame() {
