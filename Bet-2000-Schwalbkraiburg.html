@@ -508,7 +508,11 @@ function startRace() {
             positions[i] += Math.random() * 8 + 1;
             carElements[i].style.left = positions[i] + 'px';
 
-            if (positions[i] >= finishX && !finished) {
+            const shouldStop = secretWinnerIndex !== null
+                ? (i === secretWinnerIndex && positions[i] >= finishX && !finished)
+                : (positions[i] >= finishX && !finished);
+
+            if (shouldStop) {
                 finished = true;
                 clearInterval(interval);
                 startButton.disabled = false;
